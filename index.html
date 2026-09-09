@@ -127,6 +127,49 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   color: white;
 }
 
+/* 空棧板查詢：長方形號碼按鈕 grid */
+.empty-pallet-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: 560px;
+  margin: 10px auto;
+}
+.empty-pallet-btn {
+  min-width: 56px;
+  padding: 10px 6px;
+  border: none;
+  border-radius: 6px;
+  background: #4CAF50;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+}
+.empty-pallet-btn:active {
+  background: #388E3C;
+}
+
+/* 空棧板查詢彈出視窗（相機旁的快速選號用） */
+.empty-pallet-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  z-index: 9998;
+  overflow-y: auto;
+}
+.empty-pallet-modal-content {
+  max-width: 480px;
+  margin: 40px auto;
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+}
+
 /* 相機 Modal 相關 CSS 樣式 */
 .camera-modal-overlay {
   display: none;
@@ -272,7 +315,9 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 <h2 data-i18n="welcome_title">K01倉庫管理系統</h2>
 <p style="color: #666; margin-top: 10px;" data-i18n="welcome_subtitle">入庫/發料/查詢</p>
-<button style="background: #2196F3; color:white; margin-top: 15px;" onclick="showPage('page-choice')" data-i18n="welcome_start">點擊開始使用</button>
+<button style="background: #2196F3; color:white; margin-top: 15px;" onclick="showPage('page-choice')" data-i18n="welcome_start">K01庫房專用</button>
+<br>
+<button style="background: #263238; color:white; margin-top: 10px;" onclick="goToExecutorLogin()" data-i18n="choice_executor">執行者專區</button>
 </div>
 
 <!-- 2. 選擇模式頁 -->
@@ -285,6 +330,46 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <button style="background: #FF5722; color:white;" onclick="showPage('page-query-choice')" data-i18n="choice_query">查詢</button>
 <button style="background: #607D8B; color:white;" onclick="initAdjustPage()" data-i18n="choice_adjust">棧板/料號變更</button>
 </div>
+</div>
+
+<!-- 2.1 執行者專區：登入頁 -->
+<div id="page-executor-login" class="page" style="text-align: center; margin-top: 60px;">
+<h3 data-i18n="exec_login_title">🔒 執行者專區登入</h3>
+<div style="display:flex; flex-direction:column; gap:10px; max-width:320px; margin:20px auto;">
+  <input type="text" id="exec-user" class="form-control" placeholder="執行者帳號" data-i18n-ph="ph_exec_user">
+  <input type="password" id="exec-pass" class="form-control" placeholder="執行者密碼" data-i18n-ph="ph_exec_pass" onkeydown="if(event.key==='Enter') submitExecutorLogin();">
+</div>
+<div class="btn-group" style="justify-content:center;">
+  <button style="background:#263238; color:white;" onclick="submitExecutorLogin()" data-i18n="btn_exec_login">登入</button>
+  <button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
+</div>
+
+<!-- 2.2 執行者專區：選單頁（未來可持續在這裡加更多管理選項） -->
+<div id="page-executor-menu" class="page" style="text-align: center; margin-top: 60px;">
+<h3 data-i18n="exec_menu_title">🔒 執行者專區</h3>
+<p id="exec-menu-welcome" style="color:#666;"></p>
+<div class="btn-group" style="justify-content:center; flex-wrap:wrap;">
+  <button style="background:#00796B; color:white;" onclick="goToRegionManage()" data-i18n="exec_menu_region">空棧板／區域設定</button>
+</div>
+<br><button onclick="executorLogout()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
+
+<!-- 2.3 執行者專區：區域設定頁 -->
+<div id="page-executor-region" class="page" style="text-align: center; margin-top: 40px;">
+<h3 data-i18n="exec_region_title">📐 區域棧板編號設定</h3>
+<p style="font-size:13px; color:#666;" data-i18n="exec_region_hint">每個區域可設定目前可用的棧板編號上限（號碼從 1 開始算到上限）。空棧板查詢就是依這個範圍，找出還沒被用掉的號碼。</p>
+
+<div id="region-list" style="max-width:420px; margin:15px auto; text-align:left;"></div>
+
+<h4 data-i18n="exec_region_add_title">新增／修改區域</h4>
+<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; max-width:420px; margin:0 auto 15px;">
+  <input type="text" id="exec-new-region" class="form-control" style="width:120px;" placeholder="區域名稱，例如 2F" data-i18n-ph="ph_region_name">
+  <input type="number" id="exec-new-limit" class="form-control" style="width:120px;" placeholder="棧板編號上限" data-i18n-ph="ph_region_limit" min="1">
+  <button style="background:#2196F3; color:white;" onclick="submitSaveRegion()" data-i18n="btn_region_save">儲存</button>
+</div>
+
+<button onclick="showPage('page-executor-menu')" style="background:#666; color:white;" data-i18n="back_home">回上一頁</button>
 </div>
 
 <!-- 2.5 入庫模式選擇頁 -->
@@ -304,6 +389,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   <label style="min-width:70px;" data-i18n="label_pallet">棧板號：</label>
   <input type="text" id="in-pallet" class="form-control" placeholder="請刷入或輸入棧板號" data-i18n-ph="ph_pallet">
   <button type="button" class="btn-cam-inline" onclick="openCameraModal('in-pallet')" data-i18n="btn_camera">📷 相機</button>
+  <button type="button" class="btn-cam-inline" style="background:#009688;" onclick="openEmptyPalletPicker('in-pallet', document.getElementById('in-warehouse').value)" data-i18n="btn_query_empty_inline">🟩 查詢空棧板</button>
 </div>
 <div class="input-with-btn">
   <label style="min-width:70px;" data-i18n="label_warehouse">庫別：</label>
@@ -333,6 +419,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
     <label style="min-width:70px;" data-i18n="label_pallet">棧板號：</label>
     <input type="text" id="in-part-pallet" class="form-control" placeholder="請輸入棧板號" data-i18n-ph="ph_pallet_manual">
     <button type="button" class="btn-cam-inline" onclick="openCameraModal('in-part-pallet')" data-i18n="btn_camera">📷 相機</button>
+    <button type="button" class="btn-cam-inline" style="background:#009688;" onclick="openEmptyPalletPicker('in-part-pallet', document.getElementById('in-part-warehouse').value)" data-i18n="btn_query_empty_inline">🟩 查詢空棧板</button>
   </div>
   <div class="input-with-btn">
     <label style="min-width:70px;" data-i18n="label_warehouse">庫別：</label>
@@ -537,7 +624,22 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <div class="btn-group" style="justify-content: center;">
 <button style="background: #4CAF50; color:white;" onclick="goToSNQuery()" data-i18n="btn_sn_query_choice">序號查詢</button>
 <button style="background: #00796B; color:white;" onclick="goToInventoryQuery()" data-i18n="btn_inv_query_choice">庫存查詢</button>
+<button style="background: #009688; color:white;" onclick="goToEmptyPalletQuery()" data-i18n="btn_empty_query_choice">空棧板查詢</button>
 </div>
+<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
+
+<!-- 10.4 空棧板查詢頁 -->
+<div id="page-query-empty-pallet" class="page" style="text-align: center; margin-top: 40px;">
+<h3 data-i18n="empty_query_title">🟩 空棧板查詢</h3>
+<div style="display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin-bottom:15px;">
+  <label><span data-i18n="label_region">區域：</span>
+    <select id="empty-query-region" class="form-control" style="width:140px;"></select>
+  </label>
+  <button style="background:#009688; color:white;" onclick="runEmptyPalletQuery()" data-i18n="btn_empty_query">查詢空棧板</button>
+</div>
+<p id="empty-query-summary" style="font-weight:bold; color:#00796B;"></p>
+<div id="empty-query-result" class="empty-pallet-grid"></div>
 <br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
 
@@ -575,7 +677,6 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 
   <div class="btn-group" style="flex-wrap: wrap;">
     <button onclick="clearSNQuery()" style="background:#9e9e9e; color:white;" data-i18n="btn_clear">清除</button>
-    <button onclick="resetSNQuery()" style="background:#FF9800; color:white;" data-i18n="btn_query_again">再次查詢</button>
     <button onclick="goHome()" style="background:#666; color:white;" data-i18n="btn_no_query_home">不查詢回首頁</button>
   </div>
 </div>
@@ -610,7 +711,6 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 
   <div class="btn-group" style="flex-wrap: wrap;">
     <button onclick="clearInventoryQuery()" style="background:#9e9e9e; color:white;" data-i18n="btn_clear">清除</button>
-    <button onclick="resetInventoryQuery()" style="background:#FF9800; color:white;" data-i18n="btn_query_again">再次查詢</button>
     <button onclick="goHome()" style="background:#666; color:white;" data-i18n="btn_no_query_home">不查詢回首頁</button>
   </div>
 </div>
@@ -757,13 +857,26 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   </div>
 </div>
 
+<!-- 快速查詢空棧板彈出視窗（入庫棧板號欄位相機旁用） -->
+<div id="empty-pallet-modal" class="empty-pallet-modal-overlay">
+  <div class="empty-pallet-modal-content">
+    <h3 data-i18n="empty_picker_title">🟩 選擇一個空棧板號</h3>
+    <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-bottom:10px;">
+      <select id="empty-picker-region" class="form-control" style="width:140px;" onchange="runEmptyPalletPicker()"></select>
+    </div>
+    <p id="empty-picker-summary" style="font-weight:bold; color:#00796B;"></p>
+    <div id="empty-picker-result" class="empty-pallet-grid"></div>
+    <button type="button" class="btn-camera-close" onclick="closeEmptyPalletPicker()" data-i18n="btn_close_picker">關閉</button>
+  </div>
+</div>
+
 <script>
 /* ============================================================
  * 🔧🔧🔧 請先修改這一行 🔧🔧🔧
  * 貼上你「部署 Apps Script 為網頁應用程式」後拿到的網址
  * (格式類似 https://script.google.com/macros/s/AKfycb.../exec)
  * ============================================================ */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbznx60exojEITNLjwry-R5rzxXdWwCGx5XoDE9zGM72G4n9-XCO_aKY5YRj7p9buJu0dQ/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHKMjIQLoMwt_Q2iOkMwwr5ArjP4vrKbblDrfd3WOSjHtvUGfG2H41AV3F8k_917fORA/exec';
 
 /* ============================================================
  * google.script.run 相容層（Compatibility Shim）
@@ -832,13 +945,38 @@ const I18N = {
   zh: {
     welcome_title: "K01倉庫管理系統",
     welcome_subtitle: "入庫/發料/查詢",
-    welcome_start: "點擊開始使用",
+    welcome_start: "K01庫房專用",
     choice_title: "請選擇作業模式",
     choice_inbound: "入庫作業",
     choice_outbound: "發料作業",
     choice_batch: "批量上傳",
     choice_query: "查詢",
+    choice_executor: "執行者專區",
     back_home: "回首頁",
+    exec_login_title: "🔒 執行者專區登入",
+    ph_exec_user: "執行者帳號",
+    ph_exec_pass: "執行者密碼",
+    btn_exec_login: "登入",
+    exec_menu_title: "🔒 執行者專區",
+    exec_menu_region: "空棧板／區域設定",
+    exec_region_title: "📐 區域棧板編號設定",
+    exec_region_hint: "每個區域可設定目前可用的棧板編號上限（號碼從 1 開始算到上限）。空棧板查詢就是依這個範圍，找出還沒被用掉的號碼。",
+    exec_region_add_title: "新增／修改區域",
+    ph_region_name: "區域名稱，例如 2F",
+    ph_region_limit: "棧板編號上限",
+    btn_region_save: "儲存",
+    btn_region_delete: "刪除",
+    btn_empty_query_choice: "空棧板查詢",
+    empty_query_title: "🟩 空棧板查詢",
+    label_region: "區域：",
+    btn_empty_query: "查詢空棧板",
+    empty_picker_title: "🟩 選擇一個空棧板號",
+    btn_close_picker: "關閉",
+    btn_query_empty_inline: "🟩 查詢空棧板",
+    alert_need_exec_auth: "請輸入執行者帳號與密碼！",
+    alert_need_region_input: "請輸入區域名稱與棧板編號上限！",
+    alert_select_region: "請先選擇區域！",
+    confirm_delete_region: "確定要刪除這個區域嗎？",
     inbound_choice_title: "請選擇入庫方式",
     inbound_choice_bysn: "新增(序號)入庫資料",
     inbound_choice_bypart: "以料號入庫",
@@ -1001,13 +1139,38 @@ const I18N = {
   en: {
     welcome_title: "K01 Warehouse Management System",
     welcome_subtitle: "Inbound / Outbound / Query",
-    welcome_start: "Tap to Start",
+    welcome_start: "K01 Warehouse Only",
     choice_title: "Please Select an Operation Mode",
     choice_inbound: "Inbound",
     choice_outbound: "Outbound",
     choice_batch: "Batch Upload",
     choice_query: "Query",
+    choice_executor: "Executor Zone",
     back_home: "Back to Home",
+    exec_login_title: "🔒 Executor Zone Login",
+    ph_exec_user: "Executor username",
+    ph_exec_pass: "Executor password",
+    btn_exec_login: "Log In",
+    exec_menu_title: "🔒 Executor Zone",
+    exec_menu_region: "Empty Pallet / Region Settings",
+    exec_region_title: "📐 Region Pallet Number Settings",
+    exec_region_hint: "Each region can have a max usable pallet number (counted from 1 up to the limit). Empty pallet query uses this range to find numbers not yet used.",
+    exec_region_add_title: "Add / Update Region",
+    ph_region_name: "Region name, e.g. 2F",
+    ph_region_limit: "Max pallet number",
+    btn_region_save: "Save",
+    btn_region_delete: "Delete",
+    btn_empty_query_choice: "Empty Pallet Query",
+    empty_query_title: "🟩 Empty Pallet Query",
+    label_region: "Region:",
+    btn_empty_query: "Query Empty Pallets",
+    empty_picker_title: "🟩 Pick an Empty Pallet No.",
+    btn_close_picker: "Close",
+    btn_query_empty_inline: "🟩 Empty Pallets",
+    alert_need_exec_auth: "Please enter executor username and password!",
+    alert_need_region_input: "Please enter region name and max pallet number!",
+    alert_select_region: "Please select a region first!",
+    confirm_delete_region: "Are you sure you want to delete this region?",
     inbound_choice_title: "Please Select an Inbound Method",
     inbound_choice_bysn: "Add Inbound Data (by SN)",
     inbound_choice_bypart: "Inbound by Part Number",
@@ -1238,6 +1401,9 @@ let zxingReader = null;
 let currentTrack = null;
 let torchOn = false;
 let continuousCount = 0;
+let currentExecutorUser = '';
+let currentExecutorPass = '';
+let emptyPickerTargetInputId = null;
 
 function playBeep() {
   try {
@@ -1393,7 +1559,7 @@ async function tryLivePreview() {
         } catch (e) {
           console.error(e);
         }
-      }, 200);
+      }, 1000);
 
     } else if (typeof ZXing !== 'undefined') {
       setCameraStatus(tr('cam_status_live_ok_compat'));
@@ -1527,6 +1693,16 @@ function goHome() {
   document.getElementById('adjust-result-area').style.display = 'none';
   document.querySelector('#adjust-result-table tbody').innerHTML = '';
   currentAdjustRows = [];
+
+  document.getElementById('exec-user').value = '';
+  document.getElementById('exec-pass').value = '';
+  document.getElementById('exec-menu-welcome').innerText = '';
+  currentExecutorUser = '';
+  currentExecutorPass = '';
+
+  document.getElementById('empty-query-summary').innerText = '';
+  document.getElementById('empty-query-result').innerHTML = '';
+  closeEmptyPalletPicker();
 
   document.querySelectorAll('input[type="password"]').forEach(i => i.value = '');
   showPage('page-welcome');
@@ -1979,6 +2155,244 @@ function goToSNQuery() {
 
 function goToInventoryQuery() {
   showPage('page-query-inventory');
+}
+
+/* ============================================================
+ * 執行者專區（管理員登入 + 區域棧板編號設定）
+ * ============================================================ */
+function goToExecutorLogin() {
+  document.getElementById('exec-user').value = '';
+  document.getElementById('exec-pass').value = '';
+  showPage('page-executor-login');
+}
+
+function submitExecutorLogin() {
+  const username = document.getElementById('exec-user').value.trim().toUpperCase();
+  const password = document.getElementById('exec-pass').value.trim();
+  if (!username || !password) {
+    alert(tr('alert_need_exec_auth'));
+    return;
+  }
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.success) {
+        alert(res.msg || '登入失敗');
+        return;
+      }
+      currentExecutorUser = username;
+      currentExecutorPass = password;
+      document.getElementById('exec-menu-welcome').innerText = res.username;
+      showPage('page-executor-menu');
+    })
+    .withFailureHandler(function(err) {
+      alert('連線失敗：' + err.message);
+    })
+    .verifyExecutor(username, password);
+}
+
+function executorLogout() {
+  currentExecutorUser = '';
+  currentExecutorPass = '';
+  goHome();
+}
+
+function goToRegionManage() {
+  document.getElementById('exec-new-region').value = '';
+  document.getElementById('exec-new-limit').value = '';
+  showPage('page-executor-region');
+  loadRegionManageList();
+}
+
+function loadRegionManageList() {
+  const box = document.getElementById('region-list');
+  box.innerHTML = '<p style="color:#999;">讀取中...</p>';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      box.innerHTML = '';
+      if (!res.success || !res.list || res.list.length === 0) {
+        box.innerHTML = '<p style="color:#999;">目前尚未設定任何區域</p>';
+        return;
+      }
+      res.list.forEach(function(r) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; margin-bottom:6px;';
+        row.innerHTML =
+          '<span><b>' + r.region + '</b>　棧板編號上限：' + r.limit + '</span>' +
+          '<button type="button" style="background:#e53935; color:white; padding:6px 10px; border:none; border-radius:5px;" data-i18n="btn_region_delete">刪除</button>';
+        row.querySelector('button').onclick = function() { submitDeleteRegion(r.region); };
+        box.appendChild(row);
+      });
+    })
+    .withFailureHandler(function(err) {
+      box.innerHTML = '<p style="color:red;">讀取失敗：' + err.message + '</p>';
+    })
+    .getRegions();
+}
+
+function submitSaveRegion() {
+  const region = document.getElementById('exec-new-region').value.trim().toUpperCase();
+  const limit = parseInt(document.getElementById('exec-new-limit').value);
+  if (!region || !limit || limit <= 0) {
+    alert(tr('alert_need_region_input'));
+    return;
+  }
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.success) {
+        alert(res.msg || '儲存失敗');
+        return;
+      }
+      document.getElementById('exec-new-region').value = '';
+      document.getElementById('exec-new-limit').value = '';
+      loadRegionManageList();
+    })
+    .withFailureHandler(function(err) {
+      alert('儲存失敗：' + err.message);
+    })
+    .saveRegion(region, limit, currentExecutorUser, currentExecutorPass);
+}
+
+function submitDeleteRegion(region) {
+  if (!confirm(tr('confirm_delete_region'))) return;
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.success) {
+        alert(res.msg || '刪除失敗');
+        return;
+      }
+      loadRegionManageList();
+    })
+    .withFailureHandler(function(err) {
+      alert('刪除失敗：' + err.message);
+    })
+    .deleteRegion(region, currentExecutorUser, currentExecutorPass);
+}
+
+/* ============================================================
+ * 空棧板查詢（一般查詢頁 + 入庫相機旁的快速選號彈窗共用邏輯）
+ * ============================================================ */
+function loadRegionOptions(selectId, preferredValue) {
+  const select = document.getElementById(selectId);
+  select.innerHTML = '<option value="">讀取中...</option>';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      select.innerHTML = '';
+      if (res.success && res.list && res.list.length > 0) {
+        res.list.forEach(function(r) {
+          const opt = document.createElement('option');
+          opt.value = r.region;
+          opt.textContent = r.region + '（上限 ' + r.limit + '）';
+          select.appendChild(opt);
+        });
+        if (preferredValue) {
+          const upper = String(preferredValue).trim().toUpperCase();
+          const match = Array.from(select.options).find(o => o.value === upper);
+          if (match) select.value = upper;
+        }
+      } else {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '（尚未設定任何區域）';
+        select.appendChild(opt);
+      }
+    })
+    .withFailureHandler(function(err) {
+      select.innerHTML = '<option value="">讀取失敗</option>';
+    })
+    .getRegions();
+}
+
+function renderEmptyPalletGrid(container, list, onClickCode) {
+  container.innerHTML = '';
+  if (!list || list.length === 0) {
+    container.innerHTML = '<p style="color:#999;">目前沒有空棧板號</p>';
+    return;
+  }
+  list.forEach(function(code) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'empty-pallet-btn';
+    btn.textContent = code;
+    if (onClickCode) {
+      btn.onclick = function() { onClickCode(code); };
+    }
+    container.appendChild(btn);
+  });
+}
+
+function goToEmptyPalletQuery() {
+  showPage('page-query-empty-pallet');
+  document.getElementById('empty-query-summary').innerText = '';
+  document.getElementById('empty-query-result').innerHTML = '';
+  loadRegionOptions('empty-query-region');
+}
+
+function runEmptyPalletQuery() {
+  const region = document.getElementById('empty-query-region').value;
+  if (!region) { alert(tr('alert_select_region')); return; }
+  const summaryEl = document.getElementById('empty-query-summary');
+  const resultEl = document.getElementById('empty-query-result');
+  summaryEl.innerText = '查詢中...';
+  resultEl.innerHTML = '';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.success) {
+        summaryEl.innerText = res.msg || '查詢失敗';
+        return;
+      }
+      summaryEl.innerText = region + '：空棧板 ' + res.emptyList.length + ' 個（已使用 ' + res.usedCount + ' / ' + res.limit + '）';
+      renderEmptyPalletGrid(resultEl, res.emptyList, null);
+    })
+    .withFailureHandler(function(err) {
+      summaryEl.innerText = '查詢失敗：' + err.message;
+    })
+    .getEmptyPallets(region);
+}
+
+// 入庫頁面相機旁的「查詢空棧板」快速選號彈窗
+function openEmptyPalletPicker(targetInputId, preferredRegion) {
+  emptyPickerTargetInputId = targetInputId;
+  document.getElementById('empty-picker-summary').innerText = '';
+  document.getElementById('empty-picker-result').innerHTML = '';
+  document.getElementById('empty-pallet-modal').style.display = 'block';
+  loadRegionOptions('empty-picker-region', preferredRegion);
+  setTimeout(runEmptyPalletPicker, 300); // 等區域下拉選單載入後自動查一次
+}
+
+function closeEmptyPalletPicker() {
+  document.getElementById('empty-pallet-modal').style.display = 'none';
+  emptyPickerTargetInputId = null;
+}
+
+function runEmptyPalletPicker() {
+  const region = document.getElementById('empty-picker-region').value;
+  const summaryEl = document.getElementById('empty-picker-summary');
+  const resultEl = document.getElementById('empty-picker-result');
+  if (!region) {
+    summaryEl.innerText = '';
+    resultEl.innerHTML = '';
+    return;
+  }
+  summaryEl.innerText = '查詢中...';
+  resultEl.innerHTML = '';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.success) {
+        summaryEl.innerText = res.msg || '查詢失敗';
+        return;
+      }
+      summaryEl.innerText = region + '：空棧板 ' + res.emptyList.length + ' 個';
+      renderEmptyPalletGrid(resultEl, res.emptyList, function(code) {
+        if (emptyPickerTargetInputId) {
+          document.getElementById(emptyPickerTargetInputId).value = code;
+        }
+        closeEmptyPalletPicker();
+      });
+    })
+    .withFailureHandler(function(err) {
+      summaryEl.innerText = '查詢失敗：' + err.message;
+    })
+    .getEmptyPallets(region);
 }
 
 function clearSNQuery() {

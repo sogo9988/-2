@@ -330,6 +330,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <button style="background: #FF5722; color:white;" onclick="showPage('page-query-choice')" data-i18n="choice_query">查詢</button>
 <button style="background: #607D8B; color:white;" onclick="initAdjustPage()" data-i18n="choice_adjust">棧板/料號變更</button>
 </div>
+<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
 
 <!-- 2.1 執行者專區：登入頁 -->
@@ -365,6 +366,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <h4 data-i18n="exec_region_add_title">新增／修改區域</h4>
 <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; max-width:420px; margin:0 auto 15px;">
   <input type="text" id="exec-new-region" class="form-control" style="width:120px;" placeholder="區域名稱，例如 2F" data-i18n-ph="ph_region_name">
+  <input type="text" id="exec-new-prefix" class="form-control" style="width:120px;" placeholder="棧板前綴，例如 2F-" data-i18n-ph="ph_region_prefix">
   <input type="number" id="exec-new-limit" class="form-control" style="width:120px;" placeholder="棧板編號上限" data-i18n-ph="ph_region_limit" min="1">
   <button style="background:#2196F3; color:white;" onclick="submitSaveRegion()" data-i18n="btn_region_save">儲存</button>
 </div>
@@ -389,6 +391,8 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   <label style="min-width:70px;" data-i18n="label_pallet">棧板號：</label>
   <input type="text" id="in-pallet" class="form-control" placeholder="請刷入或輸入棧板號" data-i18n-ph="ph_pallet">
   <button type="button" class="btn-cam-inline" onclick="openCameraModal('in-pallet')" data-i18n="btn_camera">📷 相機</button>
+</div>
+<div style="text-align:right; margin:-4px 0 10px;">
   <button type="button" class="btn-cam-inline" style="background:#009688;" onclick="openEmptyPalletPicker('in-pallet', document.getElementById('in-warehouse').value)" data-i18n="btn_query_empty_inline">🟩 查詢空棧板</button>
 </div>
 <div class="input-with-btn">
@@ -419,6 +423,8 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
     <label style="min-width:70px;" data-i18n="label_pallet">棧板號：</label>
     <input type="text" id="in-part-pallet" class="form-control" placeholder="請輸入棧板號" data-i18n-ph="ph_pallet_manual">
     <button type="button" class="btn-cam-inline" onclick="openCameraModal('in-part-pallet')" data-i18n="btn_camera">📷 相機</button>
+  </div>
+  <div style="text-align:right; margin-top:-6px;">
     <button type="button" class="btn-cam-inline" style="background:#009688;" onclick="openEmptyPalletPicker('in-part-pallet', document.getElementById('in-part-warehouse').value)" data-i18n="btn_query_empty_inline">🟩 查詢空棧板</button>
   </div>
   <div class="input-with-btn">
@@ -789,6 +795,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 
 <div class="btn-group">
 <button id="btn-adjust-confirm-stage" style="background: #607D8B; color:white;" onclick="confirmAdjustStage()" data-i18n="btn_confirm_adjust">確認異動內容</button>
+<button id="btn-adjust-delete-stage" style="background: #e53935; color:white;" onclick="confirmAdjustDeleteStage()" data-i18n="btn_delete_adjust">刪除勾選項目</button>
 <button onclick="goHome()" style="background:#666; color:white;" data-i18n="btn_cancel_home">取消回首頁</button>
 </div>
 </div>
@@ -876,7 +883,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
  * 貼上你「部署 Apps Script 為網頁應用程式」後拿到的網址
  * (格式類似 https://script.google.com/macros/s/AKfycb.../exec)
  * ============================================================ */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHKMjIQLoMwt_Q2iOkMwwr5ArjP4vrKbblDrfd3WOSjHtvUGfG2H41AV3F8k_917fORA/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtLQdqEpYzJVPgZTiGE5zYaXxBZNUOrujzxsRK57MMJlJY47HIFEYo4BHGywfhEJMulw/exec';
 
 /* ============================================================
  * google.script.run 相容層（Compatibility Shim）
@@ -963,6 +970,7 @@ const I18N = {
     exec_region_hint: "每個區域可設定目前可用的棧板編號上限（號碼從 1 開始算到上限）。空棧板查詢就是依這個範圍，找出還沒被用掉的號碼。",
     exec_region_add_title: "新增／修改區域",
     ph_region_name: "區域名稱，例如 2F",
+    ph_region_prefix: "棧板前綴，例如 2F-",
     ph_region_limit: "棧板編號上限",
     btn_region_save: "儲存",
     btn_region_delete: "刪除",
@@ -1071,6 +1079,9 @@ const I18N = {
     adjust_hint: "請輸入棧板號或料號其中一項（或都輸入）查詢，勾選要異動的項目並直接修改棧板號、料號或片數。",
     adjust_th_select: "勾選",
     btn_confirm_adjust: "確認異動內容",
+    btn_delete_adjust: "刪除勾選項目",
+    confirm_adjust_delete: "確定要刪除勾選的 {n} 筆資料嗎？此動作送出後無法復原！",
+    adjust_will_delete: "🗑 將被刪除",
     adjust_confirm_title: "請確認異動內容",
     adjust_th_before: "異動前",
     adjust_th_after: "異動後",
@@ -1079,6 +1090,7 @@ const I18N = {
     adjust_no_change_row: "（此列已勾選但未修改任何欄位，將被忽略）",
     success_pick_out: "【操作者: {user}】\\n發貨完成！本次共出庫 {qty} 片。",
     success_adjust: "【操作者: {user}】\\n異動完成！成功更新 {n} 筆資料。",
+    success_adjust_delete: "【操作者: {user}】\\n刪除完成！成功刪除 {n} 筆資料。",
     exception_adjust: "異動完成，但有 {n} 筆資料因已被他人異動而失敗，請重新查詢後再試一次。",
     inbound_merged_note: "（其中 {qty} 片為與既有同棧板/庫別/料號資料自動加總）",
     cam_title: "📷 拍照條碼掃描",
@@ -1157,6 +1169,7 @@ const I18N = {
     exec_region_hint: "Each region can have a max usable pallet number (counted from 1 up to the limit). Empty pallet query uses this range to find numbers not yet used.",
     exec_region_add_title: "Add / Update Region",
     ph_region_name: "Region name, e.g. 2F",
+    ph_region_prefix: "Pallet prefix, e.g. 2F-",
     ph_region_limit: "Max pallet number",
     btn_region_save: "Save",
     btn_region_delete: "Delete",
@@ -1265,6 +1278,9 @@ const I18N = {
     adjust_hint: "Enter a pallet no. and/or part no. to search, then check the items to adjust and edit the pallet no., part no. or quantity directly.",
     adjust_th_select: "Select",
     btn_confirm_adjust: "Confirm Adjustment",
+    btn_delete_adjust: "Delete Selected",
+    confirm_adjust_delete: "Delete the {n} selected record(s)? This cannot be undone!",
+    adjust_will_delete: "🗑 Will be deleted",
     adjust_confirm_title: "Please Confirm the Adjustment",
     adjust_th_before: "Before",
     adjust_th_after: "After",
@@ -1273,6 +1289,7 @@ const I18N = {
     adjust_no_change_row: "(This row is checked but nothing was changed, so it will be ignored)",
     success_pick_out: "[Operator: {user}]\\nOutbound complete! {qty} pcs shipped out in total.",
     success_adjust: "[Operator: {user}]\\nAdjustment complete! {n} record(s) updated successfully.",
+    success_adjust_delete: "[Operator: {user}]\\nDeletion complete! {n} record(s) deleted successfully.",
     exception_adjust: "Adjustment complete, but {n} record(s) failed because they were changed by someone else. Please search again and retry.",
     inbound_merged_note: "({qty} pcs of which were auto-merged into an existing record with the same pallet/warehouse/part)",
     cam_title: "📷 Photo Barcode Scan",
@@ -2198,6 +2215,7 @@ function executorLogout() {
 
 function goToRegionManage() {
   document.getElementById('exec-new-region').value = '';
+  document.getElementById('exec-new-prefix').value = '';
   document.getElementById('exec-new-limit').value = '';
   showPage('page-executor-region');
   loadRegionManageList();
@@ -2216,9 +2234,10 @@ function loadRegionManageList() {
       res.list.forEach(function(r) {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; margin-bottom:6px;';
+        const sampleCode = (r.prefix || '') + String(1).padStart(String(r.limit).length, '0');
         row.innerHTML =
-          '<span><b>' + r.region + '</b>　棧板編號上限：' + r.limit + '</span>' +
-          '<button type="button" style="background:#e53935; color:white; padding:6px 10px; border:none; border-radius:5px;" data-i18n="btn_region_delete">刪除</button>';
+          '<span><b>' + r.region + '</b>　前綴：' + (r.prefix || '（無）') + '　上限：' + r.limit + '　範例：' + sampleCode + '</span>' +
+          '<button type="button" style="background:#e53935; color:white; padding:6px 10px; border:none; border-radius:5px; white-space:nowrap;" data-i18n="btn_region_delete">刪除</button>';
         row.querySelector('button').onclick = function() { submitDeleteRegion(r.region); };
         box.appendChild(row);
       });
@@ -2231,6 +2250,7 @@ function loadRegionManageList() {
 
 function submitSaveRegion() {
   const region = document.getElementById('exec-new-region').value.trim().toUpperCase();
+  const prefix = document.getElementById('exec-new-prefix').value.trim();
   const limit = parseInt(document.getElementById('exec-new-limit').value);
   if (!region || !limit || limit <= 0) {
     alert(tr('alert_need_region_input'));
@@ -2243,13 +2263,14 @@ function submitSaveRegion() {
         return;
       }
       document.getElementById('exec-new-region').value = '';
+      document.getElementById('exec-new-prefix').value = '';
       document.getElementById('exec-new-limit').value = '';
       loadRegionManageList();
     })
     .withFailureHandler(function(err) {
       alert('儲存失敗：' + err.message);
     })
-    .saveRegion(region, limit, currentExecutorUser, currentExecutorPass);
+    .saveRegion(region, prefix, limit, currentExecutorUser, currentExecutorPass);
 }
 
 function submitDeleteRegion(region) {
@@ -2707,7 +2728,7 @@ function searchAdjustRows() {
       let tr2 = document.createElement('tr');
       tr2.innerHTML = `
         <td style="text-align:center;"><input type="checkbox" id="adj-chk-${idx}"></td>
-        <td>${row.warehouse}</td>
+        <td><input type="text" id="adj-wh-${idx}" value="${row.warehouse}" style="width:70px;"></td>
         <td><input type="text" id="adj-pallet-${idx}" value="${row.pallet}" style="width:110px;"></td>
         <td><input type="text" id="adj-part-${idx}" value="${row.partNo}" style="width:150px;"></td>
         <td>${row.sn || '-'}</td>
@@ -2718,14 +2739,29 @@ function searchAdjustRows() {
   }).queryForAdjust({ pallet: pallet, partNo: partNo });
 }
 
+let currentAdjustMode = 'edit'; // 'edit' 或 'delete'
+
+function getCheckedAdjustRows() {
+  const rows = [];
+  currentAdjustRows.forEach((row, idx) => {
+    const chk = document.getElementById(`adj-chk-${idx}`);
+    if (chk && chk.checked) rows.push({ row, idx });
+  });
+  return rows;
+}
+
 function confirmAdjustStage() {
+  const checked = getCheckedAdjustRows();
+  if (checked.length === 0) {
+    alert(tr('alert_adjust_need_select'));
+    return;
+  }
+
   const submission = [];
   const confirmRows = [];
 
-  currentAdjustRows.forEach((row, idx) => {
-    const chk = document.getElementById(`adj-chk-${idx}`);
-    if (!chk || !chk.checked) return;
-
+  checked.forEach(({ row, idx }) => {
+    const newWH = document.getElementById(`adj-wh-${idx}`).value.trim().toUpperCase();
     const newPallet = document.getElementById(`adj-pallet-${idx}`).value.trim().toUpperCase();
     const newPart = document.getElementById(`adj-part-${idx}`).value.trim().toUpperCase();
     const newQty = parseInt(document.getElementById(`adj-qty-${idx}`).value);
@@ -2733,26 +2769,55 @@ function confirmAdjustStage() {
     const item = {
       rowIndex: row.rowIndex,
       origWarehouse: row.warehouse, origPallet: row.pallet, origPartNo: row.partNo, origSN: row.sn, origQty: row.qty,
-      newPallet: newPallet, newPartNo: newPart, newQty: isNaN(newQty) ? row.qty : newQty
+      newWarehouse: newWH, newPallet: newPallet, newPartNo: newPart, newQty: isNaN(newQty) ? row.qty : newQty
     };
     submission.push(item);
 
-    const beforeText = `${row.pallet} / ${row.partNo} / ${row.qty}`;
-    const afterText = `${item.newPallet} / ${item.newPartNo} / ${item.newQty}`;
+    const beforeText = `${row.warehouse} / ${row.pallet} / ${row.partNo} / ${row.qty}`;
+    const afterText = `${item.newWarehouse} / ${item.newPallet} / ${item.newPartNo} / ${item.newQty}`;
     confirmRows.push({ sn: row.sn || '-', before: beforeText, after: afterText });
   });
 
-  if (submission.length === 0) {
-    alert(tr('alert_adjust_need_select'));
-    return;
-  }
-
+  currentAdjustMode = 'edit';
   currentAdjustSubmission = submission;
   const tbody = document.querySelector('#adjust-confirm-table tbody');
   tbody.innerHTML = '';
   confirmRows.forEach(r => {
     let tr2 = document.createElement('tr');
     tr2.innerHTML = `<td>${r.sn}</td><td>${r.before}</td><td>${r.after}</td>`;
+    tbody.appendChild(tr2);
+  });
+  showPage('page-adjust-confirm');
+}
+
+function confirmAdjustDeleteStage() {
+  const checked = getCheckedAdjustRows();
+  if (checked.length === 0) {
+    alert(tr('alert_adjust_need_select'));
+    return;
+  }
+
+  if (!confirm(tr('confirm_adjust_delete', { n: checked.length }))) return;
+
+  const submission = [];
+  const confirmRows = [];
+
+  checked.forEach(({ row }) => {
+    submission.push({
+      rowIndex: row.rowIndex,
+      origWarehouse: row.warehouse, origPallet: row.pallet, origPartNo: row.partNo, origSN: row.sn, origQty: row.qty
+    });
+    const beforeText = `${row.warehouse} / ${row.pallet} / ${row.partNo} / ${row.qty}`;
+    confirmRows.push({ sn: row.sn || '-', before: beforeText, after: tr('adjust_will_delete') });
+  });
+
+  currentAdjustMode = 'delete';
+  currentAdjustSubmission = submission;
+  const tbody = document.querySelector('#adjust-confirm-table tbody');
+  tbody.innerHTML = '';
+  confirmRows.forEach(r => {
+    let tr2 = document.createElement('tr');
+    tr2.innerHTML = `<td>${r.sn}</td><td>${r.before}</td><td style="color:#d32f2f;">${r.after}</td>`;
     tbody.appendChild(tr2);
   });
   showPage('page-adjust-confirm');
@@ -2772,26 +2837,37 @@ function submitAdjust() {
   const originalLabel = tr('btn_final_confirm');
   btn.innerText = tr('processing_batch');
 
-  google.script.run.withSuccessHandler(function(res) {
+  const handleResult = function(res) {
     btn.disabled = false;
     btn.innerText = originalLabel;
     if (!res.success) {
       alert(tr('err_prefix') + res.msg);
       return;
     }
+    const msgKey = currentAdjustMode === 'delete' ? 'success_adjust_delete' : 'success_adjust';
     if (res.failCount > 0) {
       document.getElementById('success-msg').innerText =
-        tr('success_adjust', { user: res.username, n: res.successCount }) + '\\n\\n' +
+        tr(msgKey, { user: res.username, n: res.successCount }) + '\n\n' +
         tr('exception_adjust', { n: res.failCount });
     } else {
-      document.getElementById('success-msg').innerText = tr('success_adjust', { user: res.username, n: res.successCount });
+      document.getElementById('success-msg').innerText = tr(msgKey, { user: res.username, n: res.successCount });
     }
     showPage('page-success');
-  }).withFailureHandler(function(err) {
+  };
+
+  const handleFailure = function(err) {
     btn.disabled = false;
     btn.innerText = originalLabel;
     alert(tr('sys_err_prefix') + err.message);
-  }).commitAdjust(currentAdjustSubmission, username, password);
+  };
+
+  if (currentAdjustMode === 'delete') {
+    google.script.run.withSuccessHandler(handleResult).withFailureHandler(handleFailure)
+      .commitAdjustDelete(currentAdjustSubmission, username, password);
+  } else {
+    google.script.run.withSuccessHandler(handleResult).withFailureHandler(handleFailure)
+      .commitAdjust(currentAdjustSubmission, username, password);
+  }
 }
 </script>
 </body>

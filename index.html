@@ -352,6 +352,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <p id="exec-menu-welcome" style="color:#666;"></p>
 <div class="btn-group" style="justify-content:center; flex-wrap:wrap;">
   <button style="background:#00796B; color:white;" onclick="goToRegionManage()" data-i18n="exec_menu_region">空棧板／區域設定</button>
+  <button style="background:#5D4037; color:white;" onclick="goToChangeLog()" data-i18n="exec_menu_changelog">所有異動明細</button>
 </div>
 <br><button onclick="executorLogout()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
@@ -372,6 +373,27 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 
 <button onclick="showPage('page-executor-menu')" style="background:#666; color:white;" data-i18n="back_home">回上一頁</button>
+</div>
+
+<!-- 2.4 執行者專區：所有異動明細頁 -->
+<div id="page-executor-changelog" class="page" style="text-align: center; margin-top: 40px;">
+<h3 data-i18n="exec_changelog_title">📋 所有異動明細</h3>
+<p style="font-size:13px; color:#666;" data-i18n="exec_changelog_hint">記錄刪除棧板、依SN刪除、發料、庫存異動、異動刪除等需要帳密驗證的動作（不含入庫），由新到舊排序，最多顯示 200 筆。</p>
+<div id="changelog-loading" style="color:#999;"></div>
+<div class="scroll-result-box" style="max-height:420px;">
+<table id="changelog-table" style="width:100%;">
+<thead>
+<tr>
+<th data-i18n="th_changelog_time">時間</th>
+<th data-i18n="th_changelog_user">帳號</th>
+<th data-i18n="th_changelog_action">動作</th>
+<th data-i18n="th_changelog_detail">詳細內容</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<br><button onclick="showPage('page-executor-menu')" style="background:#666; color:white;" data-i18n="back_home">回上一頁</button>
 </div>
 
 <!-- 2.5 入庫模式選擇頁 -->
@@ -883,7 +905,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
  * 貼上你「部署 Apps Script 為網頁應用程式」後拿到的網址
  * (格式類似 https://script.google.com/macros/s/AKfycb.../exec)
  * ============================================================ */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtLQdqEpYzJVPgZTiGE5zYaXxBZNUOrujzxsRK57MMJlJY47HIFEYo4BHGywfhEJMulw/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx45M4X8ZVTz5zWEwWQiU2CEIABmjzlGvCIwMzuxxGba_uny95Xm9wAycIPq7YHi0Rhdg/exec';
 
 /* ============================================================
  * google.script.run 相容層（Compatibility Shim）
@@ -966,6 +988,13 @@ const I18N = {
     btn_exec_login: "登入",
     exec_menu_title: "🔒 執行者專區",
     exec_menu_region: "空棧板／區域設定",
+    exec_menu_changelog: "所有異動明細",
+    exec_changelog_title: "📋 所有異動明細",
+    exec_changelog_hint: "記錄刪除棧板、依SN刪除、發料、庫存異動、異動刪除等需要帳密驗證的動作（不含入庫），由新到舊排序，最多顯示 200 筆。",
+    th_changelog_time: "時間",
+    th_changelog_user: "帳號",
+    th_changelog_action: "動作",
+    th_changelog_detail: "詳細內容",
     exec_region_title: "📐 區域棧板編號設定",
     exec_region_hint: "每個區域可設定目前可用的棧板編號上限（號碼從 1 開始算到上限）。空棧板查詢就是依這個範圍，找出還沒被用掉的號碼。",
     exec_region_add_title: "新增／修改區域",
@@ -1165,6 +1194,13 @@ const I18N = {
     btn_exec_login: "Log In",
     exec_menu_title: "🔒 Executor Zone",
     exec_menu_region: "Empty Pallet / Region Settings",
+    exec_menu_changelog: "All Change History",
+    exec_changelog_title: "📋 All Change History",
+    exec_changelog_hint: "Logs actions requiring username/password (deleting pallets, deleting by SN, outbound, inventory adjustments, adjustment deletions) — inbound is not logged. Newest first, up to 200 records.",
+    th_changelog_time: "Time",
+    th_changelog_user: "Username",
+    th_changelog_action: "Action",
+    th_changelog_detail: "Detail",
     exec_region_title: "📐 Region Pallet Number Settings",
     exec_region_hint: "Each region can have a max usable pallet number (counted from 1 up to the limit). Empty pallet query uses this range to find numbers not yet used.",
     exec_region_add_title: "Add / Update Region",
@@ -2219,6 +2255,43 @@ function goToRegionManage() {
   document.getElementById('exec-new-limit').value = '';
   showPage('page-executor-region');
   loadRegionManageList();
+}
+
+function goToChangeLog() {
+  showPage('page-executor-changelog');
+  loadChangeLog();
+}
+
+function loadChangeLog() {
+  const loadingEl = document.getElementById('changelog-loading');
+  const tbody = document.querySelector('#changelog-table tbody');
+  tbody.innerHTML = '';
+  loadingEl.innerText = '讀取中...';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      loadingEl.innerText = '';
+      if (!res.success) {
+        loadingEl.innerText = res.msg || '讀取失敗';
+        return;
+      }
+      if (!res.list || res.list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">目前沒有任何記錄</td></tr>';
+        return;
+      }
+      res.list.forEach(function(item) {
+        const tr2 = document.createElement('tr');
+        tr2.innerHTML =
+          '<td style="white-space:nowrap;">' + item.time + '</td>' +
+          '<td>' + item.username + '</td>' +
+          '<td>' + item.action + '</td>' +
+          '<td style="text-align:left;">' + item.detail + '</td>';
+        tbody.appendChild(tr2);
+      });
+    })
+    .withFailureHandler(function(err) {
+      loadingEl.innerText = '讀取失敗：' + err.message;
+    })
+    .getChangeLog(currentExecutorUser, currentExecutorPass, 200);
 }
 
 function loadRegionManageList() {

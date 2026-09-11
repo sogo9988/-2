@@ -127,6 +127,21 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   color: white;
 }
 
+/* 回上一頁按鈕：除了首頁以外的每個頁面左上角都會自動加上這顆按鈕，
+   點擊後依「實際瀏覽過的頁面順序」返回上一層，跟「回首頁」按鈕
+   （直接跳回第一頁）是分開處理的兩套邏輯，詳見 JS 的 goBack() / goHome()。 */
+.btn-page-back {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  padding: 5px 12px;
+  font-size: 12px;
+  background: #78909C;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  z-index: 3;
+}
+
 /* 空棧板查詢：長方形號碼按鈕 grid */
 .empty-pallet-grid {
   display: flex;
@@ -329,6 +344,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <button style="background: #795548; color:white;" onclick="initBatchUploadPage()" data-i18n="choice_batch">批量上傳</button>
 <button style="background: #FF5722; color:white;" onclick="showPage('page-query-choice')" data-i18n="choice_query">查詢</button>
 <button style="background: #607D8B; color:white;" onclick="initAdjustPage()" data-i18n="choice_adjust">棧板/料號變更</button>
+<button style="background: #8E24AA; color:white;" onclick="initRenamePalletPage()" data-i18n="choice_rename_pallet">新增更換整個棧板編號</button>
 </div>
 <br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
@@ -846,6 +862,99 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 </div>
 
+<!-- 14. 整棧板編號變更：搜尋原棧板頁 -->
+<div id="page-rename-search" class="page">
+<h3 data-i18n="rename_title">整棧板編號變更</h3>
+<p style="font-size:12px; color:gray;" data-i18n="rename_hint">請先輸入原棧板號查詢，確認棧板上的物料內容後，再輸入要更換成的新棧板號，並選擇原棧板物料的處理方式。</p>
+
+<div class="input-with-btn">
+  <label style="min-width:90px;" data-i18n="label_old_pallet">原棧板號：</label>
+  <input type="text" id="rename-old-pallet" class="form-control" placeholder="請刷入或輸入原棧板號" data-i18n-ph="ph_pallet">
+  <button type="button" class="btn-cam-inline" onclick="openCameraModal('rename-old-pallet')" data-i18n="btn_camera">📷 相機</button>
+</div>
+<button style="background: #8E24AA; color:white;" onclick="searchRenamePallet()" data-i18n="btn_search_pallet">查詢棧板資料</button>
+
+<div id="rename-old-result-area" style="display:none; margin-top:15px;">
+<h4 data-i18n="rename_old_data_title">原棧板目前所有物料如下：</h4>
+<p id="rename-old-summary" style="font-weight:bold; color:#8E24AA;"></p>
+<div class="scroll-result-box">
+<table id="rename-old-table">
+<thead><tr><th data-i18n="th_wh">庫別</th><th data-i18n="th_part">料號</th><th data-i18n="th_sn">SN</th><th data-i18n="th_qty">片數</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div class="input-with-btn" style="margin-top:15px;">
+  <label style="min-width:90px;" data-i18n="label_new_pallet">新棧板號：</label>
+  <input type="text" id="rename-new-pallet" class="form-control" placeholder="請刷入或輸入新棧板號" data-i18n-ph="ph_pallet">
+  <button type="button" class="btn-cam-inline" onclick="openCameraModal('rename-new-pallet')" data-i18n="btn_camera">📷 相機</button>
+</div>
+<div style="text-align:right; margin:-4px 0 10px;">
+  <button type="button" class="btn-cam-inline" style="background:#009688;" onclick="openEmptyPalletPicker('rename-new-pallet', '')" data-i18n="btn_query_empty_inline">🟩 查詢空棧板</button>
+</div>
+
+<div style="margin:15px 0; text-align:left; max-width:520px;">
+  <label style="font-weight:bold;" data-i18n="rename_mode_label">原棧板物料處理方式：</label><br>
+  <label style="display:block; margin-top:8px;"><input type="radio" name="rename-mode" value="move" checked> <span data-i18n="rename_mode_move">清空原棧板（物料全部移到新棧板號，原棧板變空）</span></label>
+  <label style="display:block; margin-top:6px;"><input type="radio" name="rename-mode" value="merge"> <span data-i18n="rename_mode_merge">合併併入（新棧板號的物料與原棧板物料合併在一起）</span></label>
+</div>
+
+<div class="btn-group">
+<button style="background: #8E24AA; color:white;" onclick="previewRenamePallet()" data-i18n="btn_rename_preview">預覽更換內容</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="btn_cancel_home">取消回首頁</button>
+</div>
+</div>
+</div>
+
+<!-- 14.5 整棧板編號變更：確認頁（更換前 vs 更換後） -->
+<div id="page-rename-confirm" class="page">
+<h3 data-i18n="rename_confirm_title">請確認更換前／更換後內容</h3>
+<p id="rename-confirm-summary" style="font-weight:bold; color:#8E24AA;"></p>
+
+<h4 data-i18n="rename_before_title">更換前：</h4>
+<p style="font-size:13px; color:#555; margin-bottom:4px;"><span data-i18n="rename_before_old_label">原棧板</span> <b id="rename-before-old-pallet"></b>：</p>
+<div class="scroll-result-box" style="max-height:180px;">
+<table id="rename-before-old-table">
+<thead><tr><th data-i18n="th_wh">庫別</th><th data-i18n="th_part">料號</th><th data-i18n="th_sn">SN</th><th data-i18n="th_qty">片數</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div id="rename-before-new-block" style="display:none; margin-top:12px;">
+<p style="font-size:13px; color:#555; margin-bottom:4px;"><span data-i18n="rename_before_new_label">新棧板</span> <b id="rename-before-new-pallet"></b> <span data-i18n="rename_before_new_exists">（原本已存在，目前資料如下）</span>：</p>
+<div class="scroll-result-box" style="max-height:180px;">
+<table id="rename-before-new-table">
+<thead><tr><th data-i18n="th_wh">庫別</th><th data-i18n="th_part">料號</th><th data-i18n="th_sn">SN</th><th data-i18n="th_qty">片數</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<h4 style="margin-top:15px;" data-i18n="rename_after_title">更換後：</h4>
+<p id="rename-after-old-note" style="font-size:13px; color:#555;"></p>
+<p style="font-size:13px; color:#555; margin-bottom:4px;"><span data-i18n="rename_after_new_label">新棧板</span> <b id="rename-after-new-pallet"></b> <span data-i18n="rename_after_new_will">更換後將有如下內容</span>：</p>
+<div class="scroll-result-box" style="max-height:220px;">
+<table id="rename-after-table">
+<thead><tr><th data-i18n="th_wh">庫別</th><th data-i18n="th_part">料號</th><th data-i18n="th_sn">SN</th><th data-i18n="th_qty">片數</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<p id="rename-after-total" style="font-weight:bold; color:#00796B; margin-top:8px;"></p>
+
+<div class="auth-box">
+<h5 data-i18n="auth_title">操作者身份驗證 (USERS)</h5>
+<div style="display: flex; gap: 10px; margin-top: 10px;">
+<input type="text" id="rename-user" class="form-control" placeholder="請輸入帳號" data-i18n-ph="ph_account">
+<input type="password" id="rename-pass" class="form-control" placeholder="請輸入密碼" data-i18n-ph="ph_password">
+</div>
+</div>
+
+<div class="btn-group">
+<button id="btn-rename-final-confirm" style="background: #d32f2f; color:white;" onclick="submitRenamePallet()" data-i18n="btn_final_confirm">確認送單，執行動作</button>
+<button onclick="showPage('page-rename-search')" style="background:#666; color:white;" data-i18n="btn_back_edit">返回修改</button>
+</div>
+</div>
+
 <!-- 11. 成功結束通用頁面 -->
 <div id="page-success" class="page" style="text-align: center; margin-top: 80px;">
 <h2 style="color: #4CAF50;" data-i18n="success_title">操作成功完成！</h2>
@@ -905,7 +1014,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
  * 貼上你「部署 Apps Script 為網頁應用程式」後拿到的網址
  * (格式類似 https://script.google.com/macros/s/AKfycb.../exec)
  * ============================================================ */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx45M4X8ZVTz5zWEwWQiU2CEIABmjzlGvCIwMzuxxGba_uny95Xm9wAycIPq7YHi0Rhdg/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8HE2ZbjfXxHDEGxzvoXErr7as43s-WnpSNgj5fL8sfMRzhoTgoo2espW6j1VruVGXyQ/exec';
 
 /* ============================================================
  * google.script.run 相容層（Compatibility Shim）
@@ -1175,7 +1284,36 @@ const I18N = {
     success_batch_in: "【操作者: {user}】\\n批量上傳完成！成功入庫 {count} 筆序號 (庫別:{wh} / 料號:{part})。",
     success_batch_out: "批量發料完成！指定的 {n} 個序號已全數成功從庫存中移除。",
     exception_batch_out: "批量發料處理完畢！成功發料移除 {n} 個序號。但其中有 {m} 個序號「不存在於庫房中」，請選擇是否檢視。",
-    batch_confirm_summary_html: '<p><strong>操作類型：</strong>{mode}</p><p><strong>棧板號：</strong>{pallet}</p><p><strong>庫別：</strong>{wh}</p><p><strong>料號：</strong>{part}</p><p><strong>檔案內共讀取到序號：</strong><span style="color:blue; font-size:20px;">{count}</span> 筆</p><p style="color:#d32f2f;">請確認以上總數無誤，確認送出後才會實際寫入/移除庫存資料。</p>'
+    batch_confirm_summary_html: '<p><strong>操作類型：</strong>{mode}</p><p><strong>棧板號：</strong>{pallet}</p><p><strong>庫別：</strong>{wh}</p><p><strong>料號：</strong>{part}</p><p><strong>檔案內共讀取到序號：</strong><span style="color:blue; font-size:20px;">{count}</span> 筆</p><p style="color:#d32f2f;">請確認以上總數無誤，確認送出後才會實際寫入/移除庫存資料。</p>',
+    btn_page_back: "⬅ 上一頁",
+    choice_rename_pallet: "新增更換整個棧板編號",
+    rename_title: "整棧板編號變更",
+    rename_hint: "請先輸入原棧板號查詢，確認棧板上的物料內容後，再輸入要更換成的新棧板號，並選擇原棧板物料的處理方式。",
+    label_old_pallet: "原棧板號：",
+    label_new_pallet: "新棧板號：",
+    btn_rename_preview: "預覽更換內容",
+    rename_mode_label: "原棧板物料處理方式：",
+    rename_mode_move: "清空原棧板（物料全部移到新棧板號，原棧板變空）",
+    rename_mode_merge: "合併併入（新棧板號的物料與原棧板物料合併在一起）",
+    rename_mode_move_short: "清空原棧板",
+    rename_mode_merge_short: "合併併入",
+    rename_old_data_title: "原棧板目前所有物料如下：",
+    rename_old_no_data: "查無原棧板的物料資料，請確認棧板號是否正確！",
+    rename_need_search_first: "請先查詢原棧板資料！",
+    alert_need_new_pallet_input: "請輸入新棧板號！",
+    alert_rename_same_pallet: "新棧板號不可與原棧板號相同！",
+    rename_confirm_title: "請確認更換前／更換後內容",
+    rename_confirm_summary: "原棧板 {old} → 新棧板 {new}　處理方式：{mode}",
+    rename_before_title: "更換前：",
+    rename_before_old_label: "原棧板",
+    rename_before_new_label: "新棧板",
+    rename_before_new_exists: "（原本已存在，目前資料如下）",
+    rename_after_title: "更換後：",
+    rename_after_old_empty: "原棧板 {old} 將變成空棧板。",
+    rename_after_new_label: "新棧板",
+    rename_after_new_will: "更換後將有如下內容",
+    rename_after_total: "共 {n} 筆項目，總片數： {qty} 片",
+    success_rename_pallet: "【操作者: {user}】\\n棧板編號變更完成！原棧板 {old} → 新棧板 {new}，共處理 {n} 筆，合計 {qty} 片。"
   },
   en: {
     welcome_title: "K01 Warehouse Management System",
@@ -1381,7 +1519,36 @@ const I18N = {
     success_batch_in: "[Operator: {user}]\\nBatch upload complete! {count} SN(s) successfully added inbound (Warehouse:{wh} / Part:{part}).",
     success_batch_out: "Batch outbound complete! The {n} specified SN(s) have all been removed from inventory.",
     exception_batch_out: 'Batch outbound processing complete! {n} SN(s) were successfully removed. However, {m} SN(s) were "not found in inventory" \u2014 would you like to view them?',
-    batch_confirm_summary_html: '<p><strong>Operation Type:</strong>{mode}</p><p><strong>Pallet No.:</strong>{pallet}</p><p><strong>Warehouse:</strong>{wh}</p><p><strong>Part No.:</strong>{part}</p><p><strong>Total SN(s) read from file:</strong><span style="color:blue; font-size:20px;">{count}</span></p><p style="color:#d32f2f;">Please confirm the total is correct \u2014 submitting will actually write/remove inventory data.</p>'
+    batch_confirm_summary_html: '<p><strong>Operation Type:</strong>{mode}</p><p><strong>Pallet No.:</strong>{pallet}</p><p><strong>Warehouse:</strong>{wh}</p><p><strong>Part No.:</strong>{part}</p><p><strong>Total SN(s) read from file:</strong><span style="color:blue; font-size:20px;">{count}</span></p><p style="color:#d32f2f;">Please confirm the total is correct \u2014 submitting will actually write/remove inventory data.</p>',
+    btn_page_back: "⬅ Back",
+    choice_rename_pallet: "Change Entire Pallet No.",
+    rename_title: "Pallet Number Change",
+    rename_hint: "First search the original pallet no. to review its contents, then enter the new pallet no. and choose how to handle the original pallet's materials.",
+    label_old_pallet: "Original Pallet No.:",
+    label_new_pallet: "New Pallet No.:",
+    btn_rename_preview: "Preview Change",
+    rename_mode_label: "How to handle the original pallet's materials:",
+    rename_mode_move: "Empty original pallet (move everything to the new pallet no.; original pallet becomes empty)",
+    rename_mode_merge: "Merge in (materials on the new pallet no. are combined with the original pallet's materials)",
+    rename_mode_move_short: "Empty Original Pallet",
+    rename_mode_merge_short: "Merge In",
+    rename_old_data_title: "All current materials on the original pallet:",
+    rename_old_no_data: "No inventory data found for the original pallet. Please check the pallet no.!",
+    rename_need_search_first: "Please search the original pallet first!",
+    alert_need_new_pallet_input: "Please enter the new pallet no.!",
+    alert_rename_same_pallet: "The new pallet no. cannot be the same as the original!",
+    rename_confirm_title: "Please Confirm Before / After the Change",
+    rename_confirm_summary: "Pallet {old} \u2192 Pallet {new}   Method: {mode}",
+    rename_before_title: "Before:",
+    rename_before_old_label: "Original pallet",
+    rename_before_new_label: "New pallet",
+    rename_before_new_exists: "(already exists \u2014 current data below)",
+    rename_after_title: "After:",
+    rename_after_old_empty: "Original pallet {old} will become empty.",
+    rename_after_new_label: "New pallet",
+    rename_after_new_will: "will contain the following after the change",
+    rename_after_total: "{n} item(s) in total, total quantity: {qty}",
+    success_rename_pallet: "[Operator: {user}]\\nPallet number change complete! Pallet {old} \u2192 Pallet {new}, {n} record(s) processed, {qty} pcs in total."
   }
 };
 
@@ -1431,6 +1598,7 @@ function setLanguage(lang) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  ensureBackButtons_();
   applyLanguage(currentLang);
 });
 
@@ -1457,6 +1625,11 @@ let continuousCount = 0;
 let currentExecutorUser = '';
 let currentExecutorPass = '';
 let emptyPickerTargetInputId = null;
+let currentRenameOldRows = [];
+let currentRenameNewRows = [];
+let currentRenameOldPallet = '';
+let currentRenameNewPallet = '';
+let currentRenameMode = 'move';
 
 function playBeep() {
   try {
@@ -1708,10 +1881,51 @@ function closeCameraModal() {
   }
 }
 
-function showPage(pageId) {
+/* ============================================================
+ * 頁面導覽歷史紀錄（「回上一頁」與「回首頁」是分開處理的兩套邏輯）：
+ * - navHistory 記錄「實際依序瀏覽過」的頁面，goBack() 會從這裡
+ *   往回退一步，回到使用者剛剛離開的那一頁（不管是從哪裡進來的）。
+ * - goHome() 永遠直接跳回第一頁（首頁），並把 navHistory 清空重來，
+ *   兩者互不影響。
+ * ============================================================ */
+let navHistory = [];
+let currentPageId = 'page-welcome';
+
+function showPage(pageId, opts) {
+  opts = opts || {};
+  if (!opts.skipHistory && pageId !== currentPageId) {
+    navHistory.push(currentPageId);
+  }
+  currentPageId = pageId;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(pageId).classList.add('active');
   window.scrollTo(0, 0);
+}
+
+// 回上一頁：依實際瀏覽紀錄退回上一層；若沒有紀錄了(理論上只有首頁會這樣)就退回首頁
+function goBack() {
+  const target = navHistory.pop();
+  if (!target || !document.getElementById(target)) {
+    goHome();
+    return;
+  }
+  showPage(target, { skipHistory: true });
+}
+
+// 除了首頁以外，幫每個頁面自動加上一顆「回上一頁」按鈕，
+// 不用在每個頁面的 HTML 裡各自手動加，也不會漏加。
+function ensureBackButtons_() {
+  document.querySelectorAll('.page').forEach(function(pageEl) {
+    if (pageEl.id === 'page-welcome') return;
+    if (pageEl.querySelector('.btn-page-back')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-page-back';
+    btn.setAttribute('data-i18n', 'btn_page_back');
+    btn.textContent = tr('btn_page_back');
+    btn.onclick = function() { goBack(); };
+    pageEl.insertBefore(btn, pageEl.firstChild);
+  });
 }
 
 function goHome() {
@@ -1747,6 +1961,13 @@ function goHome() {
   document.querySelector('#adjust-result-table tbody').innerHTML = '';
   currentAdjustRows = [];
 
+  document.getElementById('rename-old-pallet').value = '';
+  document.getElementById('rename-new-pallet').value = '';
+  document.getElementById('rename-old-result-area').style.display = 'none';
+  document.querySelector('#rename-old-table tbody').innerHTML = '';
+  currentRenameOldRows = [];
+  currentRenameNewRows = [];
+
   document.getElementById('exec-user').value = '';
   document.getElementById('exec-pass').value = '';
   document.getElementById('exec-menu-welcome').innerText = '';
@@ -1758,7 +1979,8 @@ function goHome() {
   closeEmptyPalletPicker();
 
   document.querySelectorAll('input[type="password"]').forEach(i => i.value = '');
-  showPage('page-welcome');
+  navHistory = [];
+  showPage('page-welcome', { skipHistory: true });
 }
 
 function initInboundPage() {
@@ -2941,6 +3163,169 @@ function submitAdjust() {
     google.script.run.withSuccessHandler(handleResult).withFailureHandler(handleFailure)
       .commitAdjust(currentAdjustSubmission, username, password);
   }
+}
+
+/* ============================================================
+ * 整棧板編號變更（清空原棧板 / 合併併入）
+ * 流程：搜尋原棧板 -> 輸入新棧板號＋選擇處理方式 -> 預覽「更換前/更換後」
+ *       -> 輸入帳密按下最終確認才會真正寫入
+ * ============================================================ */
+function initRenamePalletPage() {
+  document.getElementById('rename-old-pallet').value = '';
+  document.getElementById('rename-new-pallet').value = '';
+  document.getElementById('rename-old-result-area').style.display = 'none';
+  document.querySelector('#rename-old-table tbody').innerHTML = '';
+  document.querySelectorAll('input[name="rename-mode"]').forEach(r => { r.checked = (r.value === 'move'); });
+  currentRenameOldRows = [];
+  currentRenameNewRows = [];
+  currentRenameOldPallet = '';
+  currentRenameNewPallet = '';
+  showPage('page-rename-search');
+}
+
+// 共用：把一組棧板物料列表畫進指定表格的 tbody
+function renderPalletRows_(tbodySelector, list) {
+  const tbody = document.querySelector(tbodySelector);
+  tbody.innerHTML = '';
+  if (!list || list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#999;">${tr('no_data_row')}</td></tr>`;
+    return;
+  }
+  list.forEach(row => {
+    let tr2 = document.createElement('tr');
+    tr2.innerHTML = `<td>${row.warehouse}</td><td>${row.partNo}</td><td>${row.sn || '-'}</td><td>${row.qty}</td>`;
+    tbody.appendChild(tr2);
+  });
+}
+
+function searchRenamePallet() {
+  const pallet = document.getElementById('rename-old-pallet').value.trim().toUpperCase();
+  if (!pallet) {
+    alert(tr('alert_need_pallet_input'));
+    return;
+  }
+
+  google.script.run.withSuccessHandler(function(res) {
+    const area = document.getElementById('rename-old-result-area');
+    if (!res.success || !res.list || res.list.length === 0) {
+      alert(tr('rename_old_no_data'));
+      area.style.display = 'none';
+      currentRenameOldRows = [];
+      currentRenameOldPallet = '';
+      return;
+    }
+    currentRenameOldRows = res.list;
+    currentRenameOldPallet = pallet;
+    document.getElementById('rename-old-summary').innerText = tr('pallet_summary', { qty: res.totalQty, n: res.list.length });
+    renderPalletRows_('#rename-old-table tbody', res.list);
+    area.style.display = 'block';
+  }).getPalletInfo(pallet);
+}
+
+function renderRenameConfirmPage_(res) {
+  document.getElementById('rename-confirm-summary').innerText = tr('rename_confirm_summary', {
+    old: res.oldPallet,
+    new: res.newPallet,
+    mode: tr(res.mode === 'move' ? 'rename_mode_move_short' : 'rename_mode_merge_short')
+  });
+
+  document.getElementById('rename-before-old-pallet').innerText = res.oldPallet;
+  renderPalletRows_('#rename-before-old-table tbody', res.oldRows);
+
+  const newBlock = document.getElementById('rename-before-new-block');
+  if (res.newPalletExists) {
+    document.getElementById('rename-before-new-pallet').innerText = res.newPallet;
+    renderPalletRows_('#rename-before-new-table tbody', res.newRows);
+    newBlock.style.display = 'block';
+  } else {
+    newBlock.style.display = 'none';
+  }
+
+  document.getElementById('rename-after-old-note').innerText = tr('rename_after_old_empty', { old: res.oldPallet });
+  document.getElementById('rename-after-new-pallet').innerText = res.newPallet;
+  renderPalletRows_('#rename-after-table tbody', res.afterList);
+  document.getElementById('rename-after-total').innerText = tr('rename_after_total', { n: res.afterList.length, qty: res.afterTotalQty });
+}
+
+function previewRenamePallet() {
+  if (!currentRenameOldPallet || currentRenameOldRows.length === 0) {
+    alert(tr('rename_need_search_first'));
+    return;
+  }
+  const newPallet = document.getElementById('rename-new-pallet').value.trim().toUpperCase();
+  if (!newPallet) {
+    alert(tr('alert_need_new_pallet_input'));
+    return;
+  }
+  if (newPallet === currentRenameOldPallet) {
+    alert(tr('alert_rename_same_pallet'));
+    return;
+  }
+  const modeInput = document.querySelector('input[name="rename-mode"]:checked');
+  const mode = modeInput ? modeInput.value : 'move';
+
+  google.script.run.withSuccessHandler(function(res) {
+    if (!res.success) {
+      alert(tr('err_prefix') + res.msg);
+      return;
+    }
+    currentRenameOldPallet = res.oldPallet;
+    currentRenameNewPallet = res.newPallet;
+    currentRenameMode = res.mode;
+    currentRenameOldRows = res.oldRows;
+    currentRenameNewRows = res.newRows;
+    renderRenameConfirmPage_(res);
+    showPage('page-rename-confirm');
+  }).withFailureHandler(function(err) {
+    alert(tr('sys_err_prefix') + err.message);
+  }).previewPalletRename(currentRenameOldPallet, newPallet, mode);
+}
+
+function submitRenamePallet() {
+  const username = document.getElementById('rename-user').value.trim().toUpperCase();
+  const password = document.getElementById('rename-pass').value.trim();
+
+  if (!username || !password) {
+    alert(tr('alert_need_auth'));
+    return;
+  }
+
+  const btn = document.getElementById('btn-rename-final-confirm');
+  btn.disabled = true;
+  const originalLabel = tr('btn_final_confirm');
+  btn.innerText = tr('processing');
+
+  const payload = {
+    oldPallet: currentRenameOldPallet,
+    newPallet: currentRenameNewPallet,
+    mode: currentRenameMode,
+    oldRows: currentRenameOldRows,
+    newRows: currentRenameNewRows,
+    username: username,
+    password: password
+  };
+
+  const handleResult = function(res) {
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+    if (!res.success) {
+      alert(tr('err_prefix') + res.msg);
+      return;
+    }
+    document.getElementById('success-msg').innerText = tr('success_rename_pallet', {
+      user: res.username, old: res.oldPallet, new: res.newPallet, n: res.movedCount, qty: res.movedQty
+    });
+    showPage('page-success');
+  };
+
+  const handleFailure = function(err) {
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+    alert(tr('sys_err_prefix') + err.message);
+  };
+
+  google.script.run.withSuccessHandler(handleResult).withFailureHandler(handleFailure)
+    .commitPalletRename(payload);
 }
 </script>
 </body>

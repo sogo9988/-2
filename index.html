@@ -76,6 +76,67 @@ button:disabled {
 .sn-row input[type="text"] { flex: 2; }
 .sn-row input[type="number"] { flex: 1; }
 
+/* K01特殊倉：進出庫單號動態列表（一列一組單號，可用 +／- 增減） */
+.doc-container {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 10px;
+  background: #ffffff;
+}
+.doc-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.doc-row input[type="text"] { flex: 1; }
+.btn-doc-add, .btn-doc-remove {
+  padding: 6px 12px;
+  font-size: 15px;
+  color: white;
+  min-width: 36px;
+}
+.btn-doc-add { background: #2196F3; }
+.btn-doc-remove { background: #d32f2f; }
+
+/* 以料號入庫：庫別／料號／數量 同列動態列表（可用 +／- 增減多組） */
+.part-items-container {
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 10px;
+  background: #ffffff;
+}
+.part-row { display: flex; gap: 6px; margin-bottom: 10px; align-items: center; }
+.part-row-index { min-width: 16px; font-size: 13px; color: #555; }
+.part-row .part-wh-input { flex: 0.8; min-width: 0; }
+.part-row .part-no-input { flex: 2.2; min-width: 0; }
+.part-row .part-qty-input { flex: 0.8; min-width: 0; text-align: center; }
+.part-row .part-qty-input::-webkit-outer-spin-button,
+.part-row .part-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.part-row .part-qty-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.btn-part-add, .btn-part-remove {
+  padding: 6px 10px;
+  font-size: 15px;
+  color: white;
+  min-width: 34px;
+}
+.btn-part-add { background: #009688; }
+.btn-part-remove { background: #d32f2f; }
+.part-total-summary {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #00695C;
+  text-align: right;
+}
+
 table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
 th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
 th { background-color: #f8f9fa; position: sticky; top: 0; }
@@ -332,6 +393,10 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <p style="color: #666; margin-top: 10px;" data-i18n="welcome_subtitle">入庫/發料/查詢</p>
 <button style="background: #2196F3; color:white; margin-top: 15px;" onclick="showPage('page-choice')" data-i18n="welcome_start">K01庫房專用</button>
 <br>
+<button style="background: #6D4C41; color:white; margin-top: 10px;" onclick="showPage('page-special-choice')" data-i18n="choice_special">K01特殊倉</button>
+<br>
+<button style="background: #B71C1C; color:white; margin-top: 10px;" onclick="showPage('page-issue-menu')" data-i18n="choice_issue">K01異常帳務區</button>
+<br>
 <button style="background: #263238; color:white; margin-top: 10px;" onclick="goToExecutorLogin()" data-i18n="choice_executor">執行者專區</button>
 </div>
 
@@ -456,30 +521,21 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <!-- 3.5 以料號入庫頁面 -->
 <div id="page-inbound-part" class="page">
 <h3 data-i18n="inbound_part_title">以料號手動入庫</h3>
-<div style="display: flex; flex-direction: column; gap: 10px; max-width: 450px; margin: 20px 0;">
+<div style="display: flex; flex-direction: column; gap: 10px; max-width: 550px; margin: 20px 0;">
   <div class="input-with-btn">
     <label style="min-width:70px;" data-i18n="label_pallet">棧板號：</label>
     <input type="text" id="in-part-pallet" class="form-control" placeholder="請輸入棧板號" data-i18n-ph="ph_pallet_manual">
     <button type="button" class="btn-cam-inline" onclick="openCameraModal('in-part-pallet')" data-i18n="btn_camera">📷 相機</button>
   </div>
   <div style="text-align:right; margin-top:-6px;">
-    <button type="button" class="btn-cam-inline" style="background:#009688;" onclick="openEmptyPalletPicker('in-part-pallet', document.getElementById('in-part-warehouse').value)" data-i18n="btn_query_empty_inline">🟩 查詢空棧板</button>
-  </div>
-  <div class="input-with-btn">
-    <label style="min-width:70px;" data-i18n="label_warehouse">庫別：</label>
-    <input type="text" id="in-part-warehouse" class="form-control" placeholder="請輸入庫別" data-i18n-ph="ph_warehouse">
-    <button type="button" class="btn-cam-inline" onclick="openCameraModal('in-part-warehouse')" data-i18n="btn_camera">📷 相機</button>
-  </div>
-  <div class="input-with-btn">
-    <label style="min-width:70px;" data-i18n="label_partno">料號：</label>
-    <input type="text" id="in-part-partno" class="form-control" placeholder="請刷入或輸入料號" data-i18n-ph="ph_partno_scan">
-    <button type="button" class="btn-cam-inline" onclick="openCameraModal('in-part-partno')" data-i18n="btn_camera">📷 相機</button>
-  </div>
-  <div style="display:flex; align-items:center; gap:8px;">
-    <label style="min-width:70px;" data-i18n="label_qty">數量：</label>
-    <input type="number" id="in-part-qty" class="form-control" placeholder="請輸入數量" data-i18n-ph="ph_qty" min="1" value="1">
+    <button type="button" class="btn-cam-inline" style="background:#009688;" onclick="openEmptyPalletPicker('in-part-pallet', getFirstPartWarehouseValue())" data-i18n="btn_query_empty_inline">🟩 查詢空棧板</button>
   </div>
 </div>
+
+<h4 style="margin-top: 5px;" data-i18n="part_items_title">庫別／料號／數量</h4>
+<p style="font-size:12px; color:gray;" data-i18n="part_items_hint">同一棧板可一次輸入多組料號，點選右側「＋」新增一組，「－」可刪除多餘列。</p>
+<div class="part-items-container" id="in-part-items-container"></div>
+<div class="part-total-summary" id="in-part-total-summary"></div>
 
 <div class="auth-box">
 <h5 data-i18n="auth_title">操作者身份驗證 (USERS)</h5>
@@ -955,6 +1011,183 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 </div>
 
+<!-- 12. K01特殊倉：功能選擇頁 -->
+<div id="page-special-choice" class="page" style="text-align: center; margin-top: 60px;">
+<h3 data-i18n="special_choice_title">K01特殊倉</h3>
+<div class="btn-group" style="justify-content: center;">
+<button style="background: #6D4C41; color:white;" onclick="showPage('page-special-inbound-choice')" data-i18n="special_choice_inbound">特殊倉入庫</button>
+<button style="background: #8D6E63; color:white;" onclick="showPage('page-special-outbound-choice')" data-i18n="special_choice_outbound">特殊倉出庫</button>
+</div>
+<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
+
+<!-- 12.1 特殊倉入庫方式選擇頁 -->
+<div id="page-special-inbound-choice" class="page" style="text-align: center; margin-top: 60px;">
+<h3 data-i18n="special_inbound_choice_title">特殊倉入庫：請選擇入庫方式</h3>
+<div class="btn-group" style="justify-content: center;">
+<button style="background: #2196F3; color:white;" onclick="initSpecialSNPage('IN')" data-i18n="inbound_choice_bysn">新增(序號)入庫資料</button>
+<button style="background: #009688; color:white;" onclick="initSpecialPartPage('IN')" data-i18n="inbound_choice_bypart">以料號入庫</button>
+</div>
+<br><button onclick="showPage('page-special-choice')" style="background:#666; color:white;" data-i18n="btn_back">返回</button>
+</div>
+
+<!-- 12.2 特殊倉出庫方式選擇頁 -->
+<div id="page-special-outbound-choice" class="page" style="text-align: center; margin-top: 60px;">
+<h3 data-i18n="special_outbound_choice_title">特殊倉出庫：請選擇出庫方式</h3>
+<div class="btn-group" style="justify-content: center;">
+<button style="background: #9C27B0; color:white;" onclick="initSpecialSNPage('OUT')" data-i18n="special_outbound_choice_bysn">依序號出庫</button>
+<button style="background: #3F51B5; color:white;" onclick="initSpecialPartPage('OUT')" data-i18n="special_outbound_choice_bypart">以料號出庫</button>
+</div>
+<br><button onclick="showPage('page-special-choice')" style="background:#666; color:white;" data-i18n="btn_back">返回</button>
+</div>
+
+<!-- 12.3 特殊倉：序號入/出庫輸入頁（共用，依 currentSpecialDirection 切換標題） -->
+<div id="page-special-sn" class="page">
+<h3 id="special-sn-title" data-i18n="special_sn_title_in">特殊倉入庫（序號）</h3>
+<div class="input-with-btn">
+  <label style="min-width:70px;" data-i18n="label_pallet">棧板號：</label>
+  <input type="text" id="spsn-pallet" class="form-control" placeholder="請刷入或輸入棧板號" data-i18n-ph="ph_pallet">
+  <button type="button" class="btn-cam-inline" onclick="openCameraModal('spsn-pallet')" data-i18n="btn_camera">📷 相機</button>
+</div>
+<div class="input-with-btn">
+  <label style="min-width:70px;" data-i18n="label_partno">料號：</label>
+  <input type="text" id="spsn-partno" class="form-control" placeholder="請刷入或輸入料號" data-i18n-ph="ph_partno_scan">
+  <button type="button" class="btn-cam-inline" onclick="openCameraModal('spsn-partno')" data-i18n="btn_camera">📷 相機</button>
+</div>
+
+<h4 style="margin-top: 15px;" data-i18n="special_docno_title">進出庫單號</h4>
+<p style="font-size:12px; color:gray;" data-i18n="special_docno_hint">請輸入相關進出庫單號，可點選右側「＋」依單據數量新增多筆，「－」可刪除多餘列。</p>
+<div class="doc-container" id="spsn-doc-container"></div>
+
+<h4 style="margin-top: 15px;" data-i18n="inbound_sn_title">刷入 SN 序號 (上限 500 個)</h4>
+<p style="font-size:12px; color:gray;" data-i18n="inbound_sn_hint">提示：條碼刷入後會自動帶出下一欄，也可點選各列的 📷 使用相機掃描。</p>
+<div class="sn-container" id="spsn-sn-container"></div>
+
+<div class="btn-group">
+<button style="background: #2196F3; color:white;" onclick="stageSpecialSN()" data-i18n="btn_next_step">下一步：填寫原因</button>
+<button onclick="specialCancelToChoice()" style="background:#666; color:white;" data-i18n="btn_cancel_back">取消返回</button>
+</div>
+</div>
+
+<!-- 12.4 特殊倉：料號入/出庫輸入頁（共用，依 currentSpecialDirection 切換標題） -->
+<div id="page-special-part" class="page">
+<h3 id="special-part-title" data-i18n="special_part_title_in">特殊倉入庫（料號）</h3>
+<div style="display: flex; flex-direction: column; gap: 10px; max-width: 450px; margin: 20px 0;">
+  <div class="input-with-btn">
+    <label style="min-width:70px;" data-i18n="label_pallet">棧板號：</label>
+    <input type="text" id="sppart-pallet" class="form-control" placeholder="請輸入棧板號" data-i18n-ph="ph_pallet_manual">
+    <button type="button" class="btn-cam-inline" onclick="openCameraModal('sppart-pallet')" data-i18n="btn_camera">📷 相機</button>
+  </div>
+  <div class="input-with-btn">
+    <label style="min-width:70px;" data-i18n="label_partno">料號：</label>
+    <input type="text" id="sppart-partno" class="form-control" placeholder="請刷入或輸入料號" data-i18n-ph="ph_partno_scan">
+    <button type="button" class="btn-cam-inline" onclick="openCameraModal('sppart-partno')" data-i18n="btn_camera">📷 相機</button>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <label style="min-width:70px;" data-i18n="label_qty">數量：</label>
+    <input type="number" id="sppart-qty" class="form-control" placeholder="請輸入數量" data-i18n-ph="ph_qty" min="1" value="1">
+  </div>
+</div>
+
+<h4 style="margin-top: 15px;" data-i18n="special_docno_title">進出庫單號</h4>
+<p style="font-size:12px; color:gray;" data-i18n="special_docno_hint">請輸入相關進出庫單號，可點選右側「＋」依單據數量新增多筆，「－」可刪除多餘列。</p>
+<div class="doc-container" id="sppart-doc-container"></div>
+
+<div class="btn-group">
+<button style="background: #009688; color:white;" onclick="stageSpecialPart()" data-i18n="btn_next_step">下一步：填寫原因</button>
+<button onclick="specialCancelToChoice()" style="background:#666; color:white;" data-i18n="btn_cancel_back">取消返回</button>
+</div>
+</div>
+
+<!-- 12.5 特殊倉：送出前填寫原因＋身份驗證頁（共用） -->
+<div id="page-special-reason" class="page">
+<h3 data-i18n="special_reason_title">請說明入/出特殊倉的原因</h3>
+<div id="special-reason-summary" style="font-size:15px; margin-bottom:10px;"></div>
+
+<div style="margin: 15px 0;">
+  <label style="font-weight:bold;" data-i18n="special_reason_label">原因說明（供未來發料時做為比對依據）：</label>
+  <textarea id="special-reason-input" class="form-control" rows="3" style="width:100%; margin-top:6px; text-transform:none;" placeholder="請輸入入特殊倉的原因" data-i18n-ph="special_reason_ph"></textarea>
+</div>
+
+<div class="auth-box">
+<h5 data-i18n="auth_title">操作者身份驗證 (USERS)</h5>
+<div style="display: flex; gap: 10px; margin-top: 10px;">
+<input type="text" id="special-user" class="form-control" placeholder="請輸入帳號" data-i18n-ph="ph_account">
+<input type="password" id="special-pass" class="form-control" placeholder="請輸入密碼" data-i18n-ph="ph_password">
+</div>
+</div>
+
+<div class="btn-group">
+<button id="btn-special-submit" style="background: #d32f2f; color:white;" onclick="submitSpecialTransaction()" data-i18n="btn_final_confirm">確認送單，執行動作</button>
+<button onclick="specialBackToInput()" style="background:#666; color:white;" data-i18n="btn_back_edit">返回修改</button>
+</div>
+</div>
+
+<!-- 13. K01異常帳務區：功能選擇頁 -->
+<div id="page-issue-menu" class="page" style="text-align: center; margin-top: 60px;">
+<h3 data-i18n="issue_menu_title">K01異常帳務區</h3>
+<div class="btn-group" style="justify-content: center;">
+<button style="background: #B71C1C; color:white;" onclick="initIssueReportPage()" data-i18n="issue_menu_report">單據異常回報</button>
+</div>
+<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
+
+<!-- 13.1 單據異常回報頁（含回報表單＋狀態清單） -->
+<div id="page-issue-report" class="page">
+<h3 data-i18n="issue_report_title">📋 單據異常回報</h3>
+
+<div style="display: flex; flex-direction: column; gap: 10px; max-width: 500px; margin: 15px 0;">
+  <div class="input-with-btn">
+    <label style="min-width:90px;" data-i18n="label_doc_no">單據號碼：</label>
+    <input type="text" id="issue-doc-no" class="form-control" placeholder="請輸入單據號碼" data-i18n-ph="ph_doc_no">
+  </div>
+  <div>
+    <label style="font-weight:bold;" data-i18n="label_issue_reason">異常訊息／原因：</label><br>
+    <select id="issue-reason-select" class="form-control" style="margin-top:6px; text-transform:none;" onchange="toggleIssueCustomReason()">
+      <option value="無法過帳" data-i18n="opt_issue_cant_post">無法過帳</option>
+      <option value="單據設定錯誤無法過帳" data-i18n="opt_issue_setting_error">單據設定錯誤無法過帳</option>
+      <option value="__other__" data-i18n="opt_issue_other">其他（自行輸入）</option>
+    </select>
+  </div>
+  <div id="issue-custom-reason-row" style="display:none;">
+    <input type="text" id="issue-custom-reason" class="form-control" style="text-transform:none;" placeholder="請輸入異常訊息內容" data-i18n-ph="ph_issue_custom">
+  </div>
+</div>
+
+<div class="auth-box">
+<h5 data-i18n="auth_title">操作者身份驗證 (USERS)</h5>
+<div style="display: flex; gap: 10px; margin-top: 10px;">
+<input type="text" id="issue-user" class="form-control" placeholder="請輸入帳號" data-i18n-ph="ph_account">
+<input type="password" id="issue-pass" class="form-control" placeholder="請輸入密碼" data-i18n-ph="ph_password">
+</div>
+</div>
+
+<div class="btn-group">
+<button id="btn-issue-submit" style="background: #B71C1C; color:white;" onclick="submitIssueReportUI()" data-i18n="btn_issue_submit">送出回報</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="btn_cancel_home">取消回首頁</button>
+</div>
+
+<h4 style="margin-top:25px;" data-i18n="issue_list_title">📌 異常回報狀態列（可手動更新進度）</h4>
+<p style="font-size:12px; color:gray;" data-i18n="issue_list_hint">狀態欄位可直接修改文字並按「更新」儲存，供主管隨時跟進處理進度；最終處理完成請勾選「已完成」並按更新。</p>
+<div id="issue-list-loading" style="color:#999;"></div>
+<div class="scroll-result-box" style="max-height:420px;">
+<table id="issue-list-table" style="width:100%;">
+<thead>
+<tr>
+<th data-i18n="th_issue_time">回報時間</th>
+<th data-i18n="th_issue_doc_no">單據號碼</th>
+<th data-i18n="th_issue_message">異常訊息</th>
+<th data-i18n="th_issue_reporter">回報人</th>
+<th data-i18n="th_issue_status">狀態</th>
+<th data-i18n="th_issue_completed">已完成</th>
+<th data-i18n="th_issue_action">操作</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
 <!-- 11. 成功結束通用頁面 -->
 <div id="page-success" class="page" style="text-align: center; margin-top: 80px;">
 <h2 style="color: #4CAF50;" data-i18n="success_title">操作成功完成！</h2>
@@ -1277,6 +1510,10 @@ const I18N = {
     pallet_summary: "此棧板目前在庫總數： {qty} 片 (共 {n} 筆序號)",
     pallet_no_stock: "該棧板目前無在庫資料！",
     success_part_inbound: "【操作者: {user}】\\n成功將 棧板:{pallet} / 庫別:{wh} / 料號:{part} 入庫共 {qty} 片！",
+    success_part_inbound_multi: "【操作者: {user}】\\n成功將 棧板:{pallet} 入庫 {n} 組料號：{items}",
+    part_items_title: "庫別／料號／數量",
+    part_items_hint: "同一棧板可一次輸入多組料號，點選右側「＋」新增一組，「－」可刪除多餘列。",
+    part_total_summary: "目前共 {n} 組，合計數量：{qty} 片",
     success_sn_inbound: "【操作者: {user}】\\n成功將 棧板:{pallet} 資料歸檔，總計入庫 {count} 筆序號。",
     success_pallet_out: "棧板號 {pallet} 已由 {user} 全數發料並自庫存表格中移除。",
     success_sn_out: "發料完成！指定的 {n} 個序號已全數成功從庫存中移除。",
@@ -1313,7 +1550,58 @@ const I18N = {
     rename_after_new_label: "新棧板",
     rename_after_new_will: "更換後將有如下內容",
     rename_after_total: "共 {n} 筆項目，總片數： {qty} 片",
-    success_rename_pallet: "【操作者: {user}】\\n棧板編號變更完成！原棧板 {old} → 新棧板 {new}，共處理 {n} 筆，合計 {qty} 片。"
+    success_rename_pallet: "【操作者: {user}】\\n棧板編號變更完成！原棧板 {old} → 新棧板 {new}，共處理 {n} 筆，合計 {qty} 片。",
+    choice_special: "K01特殊倉",
+    choice_issue: "K01異常帳務區",
+    special_choice_title: "K01特殊倉",
+    special_choice_inbound: "特殊倉入庫",
+    special_choice_outbound: "特殊倉出庫",
+    special_inbound_choice_title: "特殊倉入庫：請選擇入庫方式",
+    special_outbound_choice_title: "特殊倉出庫：請選擇出庫方式",
+    special_outbound_choice_bysn: "依序號出庫",
+    special_outbound_choice_bypart: "以料號出庫",
+    special_sn_title_in: "特殊倉入庫（序號）",
+    special_sn_title_out: "特殊倉出庫（序號）",
+    special_part_title_in: "特殊倉入庫（料號）",
+    special_part_title_out: "特殊倉出庫（料號）",
+    special_docno_title: "進出庫單號",
+    special_docno_hint: "請輸入相關進出庫單號，可點選右側「＋」依單據數量新增多筆，「－」可刪除多餘列。",
+    btn_next_step: "下一步：填寫原因",
+    special_reason_title: "請說明入/出特殊倉的原因",
+    special_reason_label: "原因說明（供未來發料時做為比對依據）：",
+    special_reason_ph: "請輸入入特殊倉的原因",
+    special_direction_label: "動作：",
+    alert_fill_pallet_wh_part_special: "請務必填寫 棧板號 與 料號！",
+    alert_need_doc_no: "請至少輸入一組進出庫單號！",
+    alert_need_special_reason: "請說明入特殊倉的原因！",
+    success_special: "【操作者: {user}】\\n{direction}完成！棧板:{pallet} / 料號:{part}，共處理 {qty} 片。",
+    issue_menu_title: "K01異常帳務區",
+    issue_menu_report: "單據異常回報",
+    issue_report_title: "📋 單據異常回報",
+    label_doc_no: "單據號碼：",
+    ph_doc_no: "請輸入單據號碼",
+    label_issue_reason: "異常訊息／原因：",
+    opt_issue_cant_post: "無法過帳",
+    opt_issue_setting_error: "單據設定錯誤無法過帳",
+    opt_issue_other: "其他（自行輸入）",
+    ph_issue_custom: "請輸入異常訊息內容",
+    label_reporter: "回報人：",
+    ph_reporter: "請輸入回報人（選填）",
+    btn_issue_submit: "送出回報",
+    issue_list_title: "📌 異常回報狀態列（可手動更新進度）",
+    issue_list_hint: "狀態欄位可直接修改文字並按「更新」儲存，供主管隨時跟進處理進度；最終處理完成請勾選「已完成」並按更新。",
+    th_issue_time: "回報時間",
+    th_issue_doc_no: "單據號碼",
+    th_issue_message: "異常訊息",
+    th_issue_reporter: "回報人",
+    th_issue_status: "狀態",
+    th_issue_completed: "已完成",
+    th_issue_action: "操作",
+    alert_need_doc_no_input: "請輸入單據號碼！",
+    alert_need_issue_message: "請輸入或選擇異常訊息／原因！",
+    issue_reported_alert: "單據 {doc} 已回報！狀態已列於下方清單。",
+    ph_updater: "更新人",
+    btn_issue_update: "更新"
   },
   en: {
     welcome_title: "K01 Warehouse Management System",
@@ -1512,6 +1800,10 @@ const I18N = {
     pallet_summary: "Current total on this pallet: {qty} pcs ({n} SN records)",
     pallet_no_stock: "No inventory currently on this pallet!",
     success_part_inbound: "[Operator: {user}]\\nSuccessfully added Pallet:{pallet} / Warehouse:{wh} / Part:{part}, total {qty} pcs inbound!",
+    success_part_inbound_multi: "[Operator: {user}]\\nPallet:{pallet} inbound complete for {n} item(s): {items}",
+    part_items_title: "Warehouse / Part No. / Qty",
+    part_items_hint: "You can enter multiple parts for the same pallet at once. Click \"+\" on the right to add another row, or \"-\" to remove an extra row.",
+    part_total_summary: "{n} item(s), total quantity: {qty} pcs",
     success_sn_inbound: "[Operator: {user}]\\nPallet:{pallet} data has been filed, {count} SN(s) inbound in total.",
     success_pallet_out: "Pallet {pallet} was fully shipped out by {user} and removed from inventory.",
     success_sn_out: "Outbound complete! The {n} specified SN(s) have all been removed from inventory.",
@@ -1548,7 +1840,58 @@ const I18N = {
     rename_after_new_label: "New pallet",
     rename_after_new_will: "will contain the following after the change",
     rename_after_total: "{n} item(s) in total, total quantity: {qty}",
-    success_rename_pallet: "[Operator: {user}]\\nPallet number change complete! Pallet {old} \u2192 Pallet {new}, {n} record(s) processed, {qty} pcs in total."
+    success_rename_pallet: "[Operator: {user}]\\nPallet number change complete! Pallet {old} \u2192 Pallet {new}, {n} record(s) processed, {qty} pcs in total.",
+    choice_special: "K01 Special Warehouse",
+    choice_issue: "K01 Exception Accounting",
+    special_choice_title: "K01 Special Warehouse",
+    special_choice_inbound: "Special Warehouse Inbound",
+    special_choice_outbound: "Special Warehouse Outbound",
+    special_inbound_choice_title: "Special Warehouse Inbound: Select Method",
+    special_outbound_choice_title: "Special Warehouse Outbound: Select Method",
+    special_outbound_choice_bysn: "Outbound by SN",
+    special_outbound_choice_bypart: "Outbound by Part No.",
+    special_sn_title_in: "Special Warehouse Inbound (SN)",
+    special_sn_title_out: "Special Warehouse Outbound (SN)",
+    special_part_title_in: "Special Warehouse Inbound (Part No.)",
+    special_part_title_out: "Special Warehouse Outbound (Part No.)",
+    special_docno_title: "Order/Document No.",
+    special_docno_hint: "Enter the related order/document number(s). Click \"+\" on the right to add more rows as needed, or \"-\" to remove extra rows.",
+    btn_next_step: "Next: Enter Reason",
+    special_reason_title: "Please explain the reason for this special warehouse transaction",
+    special_reason_label: "Reason (used as reference for future outbound comparison):",
+    special_reason_ph: "Enter the reason for entering the special warehouse",
+    special_direction_label: "Action:",
+    alert_fill_pallet_wh_part_special: "Please fill in the Pallet No. and Part No.!",
+    alert_need_doc_no: "Please enter at least one order/document number!",
+    alert_need_special_reason: "Please explain the reason for entering the special warehouse!",
+    success_special: "[Operator: {user}]\\n{direction} complete! Pallet:{pallet} / Part:{part}, {qty} pcs processed in total.",
+    issue_menu_title: "K01 Exception Accounting",
+    issue_menu_report: "Document Exception Report",
+    issue_report_title: "\ud83d\udccb Document Exception Report",
+    label_doc_no: "Document No.:",
+    ph_doc_no: "Enter document number",
+    label_issue_reason: "Exception Message / Reason:",
+    opt_issue_cant_post: "Cannot Post",
+    opt_issue_setting_error: "Document Setup Error, Cannot Post",
+    opt_issue_other: "Other (enter manually)",
+    ph_issue_custom: "Enter exception message details",
+    label_reporter: "Reported By:",
+    ph_reporter: "Enter reporter name (optional)",
+    btn_issue_submit: "Submit Report",
+    issue_list_title: "\ud83d\udccc Report Status List (manually updatable)",
+    issue_list_hint: "Edit the status text directly and click \"Update\" to save, so managers can track follow-up progress at any time. When fully resolved, check \"Completed\" and click Update.",
+    th_issue_time: "Reported Time",
+    th_issue_doc_no: "Document No.",
+    th_issue_message: "Exception Message",
+    th_issue_reporter: "Reported By",
+    th_issue_status: "Status",
+    th_issue_completed: "Completed",
+    th_issue_action: "Action",
+    alert_need_doc_no_input: "Please enter a document number!",
+    alert_need_issue_message: "Please enter or select an exception message/reason!",
+    issue_reported_alert: "Document {doc} has been reported! Status is listed below.",
+    ph_updater: "Updated by",
+    btn_issue_update: "Update"
   }
 };
 
@@ -1680,6 +2023,14 @@ function handleScannedResult(scannedText) {
           currentTargetInputId = `outsn-${currentNum + 1}`;
           advanced = true;
         }
+      } else if (currentTargetInputId.startsWith("spsn-sn-")) {
+        const currentNum = parseInt(currentTargetInputId.replace("spsn-sn-", ""));
+        const nextElem = document.getElementById(`spsn-sn-${currentNum + 1}`);
+        if (nextElem) {
+          nextElem.focus();
+          currentTargetInputId = `spsn-sn-${currentNum + 1}`;
+          advanced = true;
+        }
       } else if (currentTargetInputId === "query-sn-input") {
         querySNData();
       }
@@ -1710,7 +2061,7 @@ function openCameraModal(targetInputId) {
   document.getElementById('live-preview-box').style.display = 'none';
   setCameraStatus(tr('cam_status_default'));
 
-  const isSNRow = targetInputId.startsWith('insn-') || targetInputId.startsWith('outsn-');
+  const isSNRow = targetInputId.startsWith('insn-') || targetInputId.startsWith('outsn-') || targetInputId.startsWith('spsn-sn-');
   const contRow = document.getElementById('continuous-scan-row');
   contRow.style.display = isSNRow ? 'flex' : 'none';
   const toggle = document.getElementById('continuous-scan-toggle');
@@ -1978,9 +2329,396 @@ function goHome() {
   document.getElementById('empty-query-result').innerHTML = '';
   closeEmptyPalletPicker();
 
+  const spsnPallet = document.getElementById('spsn-pallet');
+  if (spsnPallet) spsnPallet.value = '';
+  const spsnPartno = document.getElementById('spsn-partno');
+  if (spsnPartno) spsnPartno.value = '';
+  const sppartPallet = document.getElementById('sppart-pallet');
+  if (sppartPallet) sppartPallet.value = '';
+  const sppartPartno = document.getElementById('sppart-partno');
+  if (sppartPartno) sppartPartno.value = '';
+  const sppartQty = document.getElementById('sppart-qty');
+  if (sppartQty) sppartQty.value = '1';
+  const specialReasonInput = document.getElementById('special-reason-input');
+  if (specialReasonInput) specialReasonInput.value = '';
+  currentSpecialData = {};
+
+  const issueDocNo = document.getElementById('issue-doc-no');
+  if (issueDocNo) issueDocNo.value = '';
+  const issueCustomReason = document.getElementById('issue-custom-reason');
+  if (issueCustomReason) issueCustomReason.value = '';
+
   document.querySelectorAll('input[type="password"]').forEach(i => i.value = '');
   navHistory = [];
   showPage('page-welcome', { skipHistory: true });
+}
+
+/* ============================================================
+ * K01特殊倉：特殊倉進/出庫
+ * 流程：選方式(序號/料號) -> 填寫棧板/料號/單號(+序號或數量) ->
+ *       填寫原因＋帳密 -> 送出
+ * ============================================================ */
+let currentSpecialDirection = 'IN'; // 'IN' 入庫 或 'OUT' 出庫
+let currentSpecialData = {};
+
+// 新增一列「進出庫單號」輸入列，可依單據數量無限增加
+function addDocNoRow(containerId) {
+  const container = document.getElementById(containerId);
+  const row = document.createElement('div');
+  row.className = 'doc-row';
+  row.innerHTML = `
+    <span class="doc-row-index">1.</span>
+    <input type="text" class="doc-no-input" placeholder="請輸入進出庫單號" oninput="this.value = this.value.toUpperCase()">
+    <button type="button" class="btn-doc-add" onclick="addDocNoRow('${containerId}')">＋</button>
+    <button type="button" class="btn-doc-remove" onclick="removeDocNoRow(this, '${containerId}')">－</button>
+  `;
+  container.appendChild(row);
+  renumberDocRows(containerId);
+}
+
+// 移除一列單號輸入列（至少保留一列）
+function removeDocNoRow(btn, containerId) {
+  const container = document.getElementById(containerId);
+  if (container.querySelectorAll('.doc-row').length <= 1) return;
+  btn.closest('.doc-row').remove();
+  renumberDocRows(containerId);
+}
+
+function renumberDocRows(containerId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.doc-row').forEach((row, i) => {
+    row.querySelector('.doc-row-index').innerText = (i + 1) + '.';
+  });
+}
+
+// 重置單號容器，回到只有一列的初始狀態
+function resetDocContainer(containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  addDocNoRow(containerId);
+}
+
+// 收集容器內所有已填寫的單號（忽略空白列）
+function collectDocNumbers(containerId) {
+  const container = document.getElementById(containerId);
+  const list = [];
+  container.querySelectorAll('.doc-no-input').forEach(input => {
+    const v = input.value.trim().toUpperCase();
+    if (v !== '') list.push(v);
+  });
+  return list;
+}
+
+function initSpecialSNPage(direction) {
+  currentSpecialDirection = direction;
+  document.getElementById('spsn-pallet').value = '';
+  document.getElementById('spsn-partno').value = '';
+  resetDocContainer('spsn-doc-container');
+
+  const container = document.getElementById('spsn-sn-container');
+  container.innerHTML = '';
+  for (let i = 1; i <= 500; i++) {
+    let row = document.createElement('div');
+    row.className = 'sn-row';
+    row.innerHTML = `
+    <span>${i}.</span>
+    <input type="text" id="spsn-sn-${i}" placeholder="SN" oninput="this.value = this.value.toUpperCase()" onkeydown="handleEnter(event, 'spsn-sn-${i+1}')">
+    <button type="button" class="btn-cam-inline" onclick="openCameraModal('spsn-sn-${i}')">📷</button>
+    <input type="number" id="spsn-qty-${i}" value="1" min="1">
+    `;
+    container.appendChild(row);
+  }
+
+  const titleKey = direction === 'OUT' ? 'special_sn_title_out' : 'special_sn_title_in';
+  const titleEl = document.getElementById('special-sn-title');
+  titleEl.setAttribute('data-i18n', titleKey);
+  titleEl.innerText = tr(titleKey);
+
+  showPage('page-special-sn');
+}
+
+function initSpecialPartPage(direction) {
+  currentSpecialDirection = direction;
+  document.getElementById('sppart-pallet').value = '';
+  document.getElementById('sppart-partno').value = '';
+  document.getElementById('sppart-qty').value = '1';
+  resetDocContainer('sppart-doc-container');
+
+  const titleKey = direction === 'OUT' ? 'special_part_title_out' : 'special_part_title_in';
+  const titleEl = document.getElementById('special-part-title');
+  titleEl.setAttribute('data-i18n', titleKey);
+  titleEl.innerText = tr(titleKey);
+
+  showPage('page-special-part');
+}
+
+function specialCancelToChoice() {
+  showPage(currentSpecialDirection === 'OUT' ? 'page-special-outbound-choice' : 'page-special-inbound-choice');
+}
+
+function specialBackToInput() {
+  showPage(currentSpecialData.type === 'part' ? 'page-special-part' : 'page-special-sn');
+}
+
+function stageSpecialSN() {
+  const pallet = document.getElementById('spsn-pallet').value.trim().toUpperCase();
+  const partNo = document.getElementById('spsn-partno').value.trim().toUpperCase();
+  if (!pallet || !partNo) {
+    alert(tr('alert_fill_pallet_wh_part_special'));
+    return;
+  }
+
+  let snList = [];
+  let totalQty = 0;
+  for (let i = 1; i <= 500; i++) {
+    let snElem = document.getElementById(`spsn-sn-${i}`);
+    if (!snElem) continue;
+    let sn = snElem.value.trim().toUpperCase();
+    let qty = parseInt(document.getElementById(`spsn-qty-${i}`).value) || 1;
+    if (sn !== '') {
+      snList.push({ sn: sn, qty: qty });
+      totalQty += qty;
+    }
+  }
+  if (snList.length === 0) {
+    alert(tr('alert_need_one_sn'));
+    return;
+  }
+
+  const docNumbers = collectDocNumbers('spsn-doc-container');
+  if (docNumbers.length === 0) {
+    alert(tr('alert_need_doc_no'));
+    return;
+  }
+
+  currentSpecialData = { type: 'sn', direction: currentSpecialDirection, pallet: pallet, partNo: partNo, snList: snList, totalQty: totalQty, docNumbers: docNumbers };
+  showSpecialReasonPage();
+}
+
+function stageSpecialPart() {
+  const pallet = document.getElementById('sppart-pallet').value.trim().toUpperCase();
+  const partNo = document.getElementById('sppart-partno').value.trim().toUpperCase();
+  const qty = parseInt(document.getElementById('sppart-qty').value) || 0;
+  if (!pallet || !partNo || qty <= 0) {
+    alert(tr('alert_fill_wh_part_qty'));
+    return;
+  }
+
+  const docNumbers = collectDocNumbers('sppart-doc-container');
+  if (docNumbers.length === 0) {
+    alert(tr('alert_need_doc_no'));
+    return;
+  }
+
+  currentSpecialData = {
+    type: 'part', direction: currentSpecialDirection, pallet: pallet, partNo: partNo,
+    snList: [{ sn: '', qty: qty }], totalQty: qty, docNumbers: docNumbers
+  };
+  showSpecialReasonPage();
+}
+
+function showSpecialReasonPage() {
+  const d = currentSpecialData;
+  const directionText = d.direction === 'OUT' ? tr('radio_out') : tr('radio_in');
+  document.getElementById('special-reason-summary').innerHTML = `
+  <p><strong>${tr('special_direction_label')}</strong>${directionText}</p>
+  <p><strong>${tr('label_pallet')}</strong>${d.pallet}</p>
+  <p><strong>${tr('label_partno')}</strong>${d.partNo}</p>
+  <p><strong>${tr('th_qty')}:</strong> <span style="color:blue; font-size:18px;">${d.totalQty}</span></p>
+  <p><strong>${tr('special_docno_title')}：</strong>${d.docNumbers.join('、')}</p>
+  `;
+  document.getElementById('special-reason-input').value = '';
+  document.getElementById('special-user').value = '';
+  document.getElementById('special-pass').value = '';
+  showPage('page-special-reason');
+}
+
+function submitSpecialTransaction() {
+  const reason = document.getElementById('special-reason-input').value.trim();
+  if (!reason) {
+    alert(tr('alert_need_special_reason'));
+    return;
+  }
+
+  const username = document.getElementById('special-user').value.trim().toUpperCase();
+  const password = document.getElementById('special-pass').value.trim();
+  if (!username || !password) {
+    alert(tr('alert_need_auth'));
+    return;
+  }
+
+  const payload = Object.assign({}, currentSpecialData, { reason: reason, username: username, password: password });
+
+  const btn = document.getElementById('btn-special-submit');
+  btn.disabled = true;
+  const originalLabel = tr('btn_final_confirm');
+  btn.innerText = tr('processing');
+
+  google.script.run
+  .withSuccessHandler(function(res) {
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+    if (!res.success) {
+      alert(tr('err_prefix') + res.msg);
+      return;
+    }
+    const directionText = currentSpecialData.direction === 'OUT' ? tr('radio_out') : tr('radio_in');
+    document.getElementById('success-msg').innerText = tr('success_special', {
+      user: res.username, direction: directionText, pallet: currentSpecialData.pallet,
+      part: currentSpecialData.partNo, qty: res.totalQty
+    });
+    showPage('page-success');
+  })
+  .withFailureHandler(function(err) {
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+    alert(tr('sys_err_prefix') + err.message);
+  })
+  .processSpecialTransaction(payload);
+}
+
+/* ============================================================
+ * K01異常帳務區：單據異常回報
+ * ============================================================ */
+function toggleIssueCustomReason() {
+  const sel = document.getElementById('issue-reason-select');
+  document.getElementById('issue-custom-reason-row').style.display = sel.value === '__other__' ? 'block' : 'none';
+}
+
+function initIssueReportPage() {
+  document.getElementById('issue-doc-no').value = '';
+  document.getElementById('issue-reason-select').value = '無法過帳';
+  document.getElementById('issue-custom-reason').value = '';
+  document.getElementById('issue-custom-reason-row').style.display = 'none';
+  document.getElementById('issue-user').value = '';
+  document.getElementById('issue-pass').value = '';
+  showPage('page-issue-report');
+  loadIssueList();
+}
+
+function submitIssueReportUI() {
+  const docNo = document.getElementById('issue-doc-no').value.trim().toUpperCase();
+  const sel = document.getElementById('issue-reason-select');
+  let message = sel.value;
+  if (message === '__other__') {
+    message = document.getElementById('issue-custom-reason').value.trim();
+  }
+  const username = document.getElementById('issue-user').value.trim().toUpperCase();
+  const password = document.getElementById('issue-pass').value.trim();
+
+  if (!docNo) {
+    alert(tr('alert_need_doc_no_input'));
+    return;
+  }
+  if (!message) {
+    alert(tr('alert_need_issue_message'));
+    return;
+  }
+  if (!username || !password) {
+    alert(tr('alert_need_auth'));
+    return;
+  }
+
+  const btn = document.getElementById('btn-issue-submit');
+  btn.disabled = true;
+  const originalLabel = tr('btn_issue_submit');
+  btn.innerText = tr('processing');
+
+  google.script.run
+  .withSuccessHandler(function(res) {
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+    if (!res.success) {
+      alert(tr('err_prefix') + res.msg);
+      return;
+    }
+    alert(tr('issue_reported_alert', { doc: res.docNo }));
+    document.getElementById('issue-doc-no').value = '';
+    document.getElementById('issue-custom-reason').value = '';
+    document.getElementById('issue-pass').value = '';
+    loadIssueList();
+  })
+  .withFailureHandler(function(err) {
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+    alert(tr('sys_err_prefix') + err.message);
+  })
+  .submitIssueReport(docNo, message, username, password);
+}
+
+function loadIssueList() {
+  const loadingEl = document.getElementById('issue-list-loading');
+  loadingEl.innerText = tr('searching_status');
+  google.script.run
+  .withSuccessHandler(function(res) {
+    loadingEl.innerText = '';
+    if (!res.success) {
+      alert(tr('err_prefix') + res.msg);
+      return;
+    }
+    renderIssueList(res.list);
+  })
+  .withFailureHandler(function(err) {
+    loadingEl.innerText = '';
+    alert(tr('sys_err_prefix') + err.message);
+  })
+  .getIssueReports();
+}
+
+function renderIssueList(list) {
+  const tbody = document.querySelector('#issue-list-table tbody');
+  tbody.innerHTML = '';
+  if (!list || list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7">${tr('no_data_row')}</td></tr>`;
+    return;
+  }
+  list.forEach(item => {
+    const tr2 = document.createElement('tr');
+    const statusInputId = `issue-status-${item.rowIndex}`;
+    const doneCheckId = `issue-done-${item.rowIndex}`;
+    const userId = `issue-row-user-${item.rowIndex}`;
+    const passId = `issue-row-pass-${item.rowIndex}`;
+    const escapedStatus = String(item.status || '').replace(/"/g, '&quot;');
+    tr2.innerHTML = `
+      <td>${item.time}</td>
+      <td>${item.docNo}</td>
+      <td>${item.message}</td>
+      <td>${item.reporter || ''}</td>
+      <td><input type="text" id="${statusInputId}" value="${escapedStatus}" style="width:120px; text-transform:none;"></td>
+      <td style="text-align:center;"><input type="checkbox" id="${doneCheckId}" ${item.completed ? 'checked' : ''}></td>
+      <td>
+        <input type="text" id="${userId}" placeholder="${tr('ph_account')}" style="width:80px; margin-bottom:4px;"><br>
+        <input type="password" id="${passId}" placeholder="${tr('ph_password')}" style="width:80px; margin-bottom:4px;"><br>
+        <button type="button" style="background:#2196F3; color:white; padding:4px 10px; font-size:13px;" onclick="updateIssueStatusUI(${item.rowIndex})">${tr('btn_issue_update')}</button>
+      </td>
+    `;
+    tbody.appendChild(tr2);
+  });
+}
+
+function updateIssueStatusUI(rowIndex) {
+  const status = document.getElementById(`issue-status-${rowIndex}`).value.trim();
+  const completed = document.getElementById(`issue-done-${rowIndex}`).checked;
+  const username = document.getElementById(`issue-row-user-${rowIndex}`).value.trim().toUpperCase();
+  const password = document.getElementById(`issue-row-pass-${rowIndex}`).value.trim();
+
+  if (!username || !password) {
+    alert(tr('alert_need_auth'));
+    return;
+  }
+
+  google.script.run
+  .withSuccessHandler(function(res) {
+    if (!res.success) {
+      alert(tr('err_prefix') + res.msg);
+      return;
+    }
+    loadIssueList();
+  })
+  .withFailureHandler(function(err) {
+    alert(tr('sys_err_prefix') + err.message);
+  })
+  .updateIssueStatus(rowIndex, status, completed, username, password);
 }
 
 function initInboundPage() {
@@ -2000,11 +2738,80 @@ function initInboundPage() {
   showPage('page-inbound-input');
 }
 
+// 新增一列「庫別／料號／數量」，庫別/料號/數量放在同一列，方便同棧板一次輸入多組
+let partRowCounter = 0;
+
+function addPartRow() {
+  const container = document.getElementById('in-part-items-container');
+  partRowCounter++;
+  const uid = partRowCounter;
+  const row = document.createElement('div');
+  row.className = 'part-row';
+  row.innerHTML = `
+    <span class="part-row-index"></span>
+    <input type="text" id="in-part-wh-${uid}" class="form-control part-wh-input" placeholder="庫別" oninput="this.value = this.value.toUpperCase()">
+    <input type="text" id="in-part-no-${uid}" class="form-control part-no-input" placeholder="料號" oninput="this.value = this.value.toUpperCase()">
+    <input type="number" id="in-part-qty-${uid}" class="form-control part-qty-input" placeholder="數量" min="1" value="1" oninput="updatePartTotal()">
+    <button type="button" class="btn-part-add" onclick="addPartRow()">＋</button>
+    <button type="button" class="btn-part-remove" onclick="removePartRow(this)">－</button>
+  `;
+  container.appendChild(row);
+  renumberPartRows();
+  updatePartTotal();
+}
+
+// 移除一列（至少保留一列）
+function removePartRow(btn) {
+  const container = document.getElementById('in-part-items-container');
+  if (container.querySelectorAll('.part-row').length <= 1) return;
+  btn.closest('.part-row').remove();
+  renumberPartRows();
+  updatePartTotal();
+}
+
+function renumberPartRows() {
+  const container = document.getElementById('in-part-items-container');
+  container.querySelectorAll('.part-row').forEach((row, i) => {
+    row.querySelector('.part-row-index').innerText = (i + 1) + '.';
+  });
+}
+
+// 加總目前所有列的數量，方便數量多時直接確認合計
+function updatePartTotal() {
+  const container = document.getElementById('in-part-items-container');
+  let total = 0;
+  let rowCount = 0;
+  container.querySelectorAll('.part-qty-input').forEach(input => {
+    const qty = parseInt(input.value) || 0;
+    if (qty > 0) {
+      total += qty;
+      rowCount++;
+    }
+  });
+  const summaryEl = document.getElementById('in-part-total-summary');
+  if (summaryEl) {
+    summaryEl.innerText = tr('part_total_summary', { n: rowCount, qty: total });
+  }
+}
+
+// 重置列表，回到只有一列的初始狀態
+function resetPartRows() {
+  const container = document.getElementById('in-part-items-container');
+  container.innerHTML = '';
+  partRowCounter = 0;
+  addPartRow();
+}
+
+// 供「查詢空棧板」帶入第一組已填寫的庫別
+function getFirstPartWarehouseValue() {
+  const container = document.getElementById('in-part-items-container');
+  const first = container.querySelector('.part-wh-input');
+  return first ? first.value.trim().toUpperCase() : '';
+}
+
 function initPartInboundPage() {
   document.getElementById('in-part-pallet').value = '';
-  document.getElementById('in-part-warehouse').value = '';
-  document.getElementById('in-part-partno').value = '';
-  document.getElementById('in-part-qty').value = '1';
+  resetPartRows();
   document.getElementById('in-part-user').value = '';
   document.getElementById('in-part-pass').value = '';
   showPage('page-inbound-part');
@@ -2012,15 +2819,31 @@ function initPartInboundPage() {
 
 function submitPartInbound() {
   const pallet = document.getElementById('in-part-pallet').value.trim().toUpperCase();
-  const warehouse = document.getElementById('in-part-warehouse').value.trim().toUpperCase();
-  const partNo = document.getElementById('in-part-partno').value.trim().toUpperCase();
-  const qty = parseInt(document.getElementById('in-part-qty').value) || 0;
   const username = document.getElementById('in-part-user').value.trim().toUpperCase();
   const password = document.getElementById('in-part-pass').value.trim();
 
-  if (!warehouse || !partNo || qty <= 0) {
+  const items = [];
+  document.querySelectorAll('#in-part-items-container .part-row').forEach(row => {
+    const whInput = row.querySelector('.part-wh-input');
+    const noInput = row.querySelector('.part-no-input');
+    const qtyInput = row.querySelector('.part-qty-input');
+    const warehouse = whInput.value.trim().toUpperCase();
+    const partNo = noInput.value.trim().toUpperCase();
+    const qty = parseInt(qtyInput.value) || 0;
+    if (warehouse !== '' || partNo !== '') {
+      items.push({ warehouse: warehouse, partNo: partNo, qty: qty });
+    }
+  });
+
+  if (items.length === 0) {
     alert(tr('alert_fill_wh_part_qty'));
     return;
+  }
+  for (const item of items) {
+    if (!item.warehouse || !item.partNo || item.qty <= 0) {
+      alert(tr('alert_fill_wh_part_qty'));
+      return;
+    }
   }
   if (!username || !password) {
     alert(tr('alert_need_auth'));
@@ -2029,10 +2852,7 @@ function submitPartInbound() {
 
   const inboundData = {
     pallet: pallet,
-    warehouse: warehouse,
-    partNo: partNo,
-    snList: [{ sn: '', qty: qty }],
-    totalQty: qty,
+    items: items,
     username: username,
     password: password
   };
@@ -2050,8 +2870,9 @@ function submitPartInbound() {
       alert(tr('err_prefix') + res.msg);
       return;
     }
-    let msg = tr('success_part_inbound', {
-      user: res.username, pallet: pallet || '-', wh: warehouse, part: partNo, qty: qty
+    const itemsSummary = items.map(it => `${it.warehouse}/${it.partNo} x${it.qty}`).join('、');
+    let msg = tr('success_part_inbound_multi', {
+      user: res.username, pallet: pallet || '-', items: itemsSummary, n: items.length
     });
     if (res.mergedQty > 0) {
       msg += '\n' + tr('inbound_merged_note', { qty: res.mergedQty });
@@ -2064,7 +2885,7 @@ function submitPartInbound() {
     btn.innerText = originalLabel;
     alert(tr('sys_err_prefix') + err.message);
   })
-  .processInbound(inboundData);
+  .processPartInboundBatch(inboundData);
 }
 
 function handleEnter(event, nextId) {

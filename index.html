@@ -137,6 +137,52 @@ button:disabled {
   text-align: right;
 }
 
+/* 指定序號工作區：即時統計條與掃描結果橫幅 */
+.designated-stats-bar {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 15px 0;
+  flex-wrap: wrap;
+}
+.designated-stat {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 10px 20px;
+  text-align: center;
+  min-width: 90px;
+}
+.designated-stat-num {
+  display: block;
+  font-size: 28px;
+  font-weight: bold;
+  color: #4527A0;
+}
+.designated-stat-label {
+  display: block;
+  font-size: 13px;
+  color: #666;
+  margin-top: 2px;
+}
+.designated-result-banner {
+  margin: 15px 0;
+  padding: 18px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  display: none;
+}
+.designated-result-banner.show { display: block; }
+.designated-result-banner.result-ok { background: #C8E6C9; color: #1B5E20; }
+.designated-result-banner.result-ng { background: #FFCDD2; color: #B71C1C; }
+.designated-result-banner.result-dup { background: #FFF9C4; color: #7B5E00; }
+.designated-result-detail {
+  font-size: 15px;
+  font-weight: normal;
+  margin-top: 6px;
+}
+
 table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
 th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
 th { background-color: #f8f9fa; position: sticky; top: 0; }
@@ -396,6 +442,8 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <button style="background: #6D4C41; color:white; margin-top: 10px;" onclick="showPage('page-special-choice')" data-i18n="choice_special">K01特殊倉</button>
 <br>
 <button style="background: #B71C1C; color:white; margin-top: 10px;" onclick="showPage('page-issue-menu')" data-i18n="choice_issue">K01異常帳務區</button>
+<br>
+<button style="background: #4527A0; color:white; margin-top: 10px;" onclick="showPage('page-designated-menu')" data-i18n="choice_designated">指定序號工作區</button>
 <br>
 <button style="background: #263238; color:white; margin-top: 10px;" onclick="goToExecutorLogin()" data-i18n="choice_executor">執行者專區</button>
 </div>
@@ -1188,6 +1236,73 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 </div>
 
+<!-- 14. 指定序號工作區：功能選擇頁 -->
+<div id="page-designated-menu" class="page" style="text-align: center; margin-top: 60px;">
+<h3 data-i18n="designated_menu_title">指定序號工作區</h3>
+<div class="btn-group" style="justify-content: center;">
+<button style="background: #4527A0; color:white;" onclick="initDesignatedUploadPage()" data-i18n="designated_menu_single">單一指定序作業</button>
+</div>
+<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
+
+<!-- 14.1 單一指定序作業：上傳指定序號清單頁 -->
+<div id="page-designated-upload" class="page">
+<h3 data-i18n="designated_upload_title">單一指定序作業：上傳指定序號清單</h3>
+<p style="font-size:12px; color:gray;" data-i18n-html="designated_upload_hint">
+請上傳檔名為 <b>K01 指定序號</b> 的 Excel 檔案：欄位標題請固定為 A1＝<b>MO單號</b>，B1＝<b>庫別</b>，C1＝<b>料號</b>，D1＝<b>SN</b>，資料請從第 2 列開始往下填寫（不同料號的序號可混在同一欄，系統會自動依庫別／料號分類）。
+</p>
+
+<div style="margin: 15px 0;">
+  <label style="font-weight:bold;" data-i18n="label_choose_file">選擇 Excel 檔案 (K01 指定序號.xlsx)：</label><br>
+  <input type="file" id="designated-file-input" accept=".xlsx,.xls" style="margin-top:8px;">
+</div>
+
+<div class="btn-group">
+<button id="btn-designated-parse" style="background:#4527A0; color:white;" onclick="parseDesignatedFile()" data-i18n="btn_parse">解析檔案並開始作業</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="btn_cancel_home">取消回首頁</button>
+</div>
+</div>
+
+<!-- 14.2 單一指定序作業：掃描比對工作頁 -->
+<div id="page-designated-scan" class="page">
+<h3 data-i18n="designated_scan_title">🔍 指定序號掃描比對</h3>
+
+<div class="designated-stats-bar">
+  <div class="designated-stat"><span class="designated-stat-num" id="designated-stat-scanned">0</span><span class="designated-stat-label" data-i18n="designated_stat_scanned">已刷</span></div>
+  <div class="designated-stat"><span class="designated-stat-num" id="designated-stat-remaining">0</span><span class="designated-stat-label" data-i18n="designated_stat_remaining">未完成</span></div>
+  <div class="designated-stat"><span class="designated-stat-num" id="designated-stat-total">0</span><span class="designated-stat-label" data-i18n="designated_stat_total">總筆數</span></div>
+</div>
+
+<div class="input-with-btn">
+  <input type="text" id="designated-scan-input" class="form-control" style="font-size:18px;" placeholder="請刷入或輸入序號 SN" onkeydown="handleDesignatedScanEnter(event)" autocomplete="off">
+  <button type="button" class="btn-cam-inline" onclick="openCameraModal('designated-scan-input')" data-i18n="btn_camera">📷 相機</button>
+</div>
+
+<div id="designated-result-banner" class="designated-result-banner"></div>
+
+<h4 style="margin-top:20px;" data-i18n="designated_log_title">📜 掃描紀錄（最新在上方）</h4>
+<div class="scroll-result-box" style="max-height:320px;">
+<table id="designated-log-table" style="width:100%;">
+<thead>
+<tr>
+<th data-i18n="th_designated_time">時間</th>
+<th data-i18n="th_designated_sn">SN</th>
+<th data-i18n="th_designated_result">結果</th>
+<th data-i18n="th_designated_wh">庫別</th>
+<th data-i18n="th_designated_part">料號</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div class="btn-group" style="margin-top:20px;">
+<button id="btn-designated-download-scanned" style="background:#2196F3; color:white;" onclick="downloadDesignatedExport('scanned')" data-i18n="btn_designated_dl_scanned">下載已刷SN</button>
+<button id="btn-designated-download-unscanned" style="background:#795548; color:white;" onclick="downloadDesignatedExport('unscanned')" data-i18n="btn_designated_dl_unscanned">下載未刷SN</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="btn_designated_finish">結束並返回首頁</button>
+</div>
+</div>
+
 <!-- 11. 成功結束通用頁面 -->
 <div id="page-success" class="page" style="text-align: center; margin-top: 80px;">
 <h2 style="color: #4CAF50;" data-i18n="success_title">操作成功完成！</h2>
@@ -1601,7 +1716,35 @@ const I18N = {
     alert_need_issue_message: "請輸入或選擇異常訊息／原因！",
     issue_reported_alert: "單據 {doc} 已回報！狀態已列於下方清單。",
     ph_updater: "更新人",
-    btn_issue_update: "更新"
+    btn_issue_update: "更新",
+    choice_designated: "指定序號工作區",
+    designated_menu_title: "指定序號工作區",
+    designated_menu_single: "單一指定序作業",
+    designated_upload_title: "單一指定序作業：上傳指定序號清單",
+    designated_upload_hint: "請上傳檔名為 <b>K01 指定序號</b> 的 Excel 檔案：欄位標題請固定為 A1＝<b>MO單號</b>，B1＝<b>庫別</b>，C1＝<b>料號</b>，D1＝<b>SN</b>，資料請從第 2 列開始往下填寫（不同料號的序號可混在同一欄，系統會自動依庫別／料號分類）。",
+    designated_scan_title: "🔍 指定序號掃描比對",
+    designated_stat_scanned: "已刷",
+    designated_stat_remaining: "未完成",
+    designated_stat_total: "總筆數",
+    designated_log_title: "📜 掃描紀錄（最新在上方）",
+    th_designated_time: "時間",
+    th_designated_sn: "SN",
+    th_designated_result: "結果",
+    th_designated_wh: "庫別",
+    th_designated_part: "料號",
+    btn_designated_dl_scanned: "下載已刷SN",
+    btn_designated_dl_unscanned: "下載未刷SN",
+    btn_designated_finish: "結束並返回首頁",
+    alert_designated_need_file: "請選擇要上傳的 Excel 檔案！",
+    alert_designated_no_data: "目前沒有可下載的資料！",
+    designated_result_ok: "OK",
+    designated_result_ng: "NG",
+    designated_result_dup: "重複刷入",
+    designated_result_detail: "庫別：{wh}　／　料號：{part}",
+    designated_result_ng_detail: "查無此序號，請確認是否刷錯或不在本次清單中",
+    designated_parse_confirm: "已成功讀取 {count} 筆指定序號資料，即將進入掃描作業！",
+    designated_downloading: "匯出中...",
+    generating: "產生中..."
   },
   en: {
     welcome_title: "K01 Warehouse Management System",
@@ -1891,7 +2034,35 @@ const I18N = {
     alert_need_issue_message: "Please enter or select an exception message/reason!",
     issue_reported_alert: "Document {doc} has been reported! Status is listed below.",
     ph_updater: "Updated by",
-    btn_issue_update: "Update"
+    btn_issue_update: "Update",
+    choice_designated: "Designated SN Workspace",
+    designated_menu_title: "Designated SN Workspace",
+    designated_menu_single: "Single Designated-SN Task",
+    designated_upload_title: "Single Designated-SN Task: Upload SN List",
+    designated_upload_hint: "Please upload an Excel file named <b>K01 \u6307\u5b9a\u5e8f\u865f</b> (K01 Designated SN): headers must be A1=<b>MO No.</b>, B1=<b>Warehouse</b>, C1=<b>Part No.</b>, D1=<b>SN</b>, with data starting from row 2 (SNs for different part numbers may be mixed in the same column \u2014 the system will automatically group them by warehouse/part).",
+    designated_scan_title: "\ud83d\udd0d Designated SN Scan Match",
+    designated_stat_scanned: "Scanned",
+    designated_stat_remaining: "Remaining",
+    designated_stat_total: "Total",
+    designated_log_title: "\ud83d\udcdc Scan Log (newest on top)",
+    th_designated_time: "Time",
+    th_designated_sn: "SN",
+    th_designated_result: "Result",
+    th_designated_wh: "Warehouse",
+    th_designated_part: "Part No.",
+    btn_designated_dl_scanned: "Download Scanned SNs",
+    btn_designated_dl_unscanned: "Download Unscanned SNs",
+    btn_designated_finish: "Finish & Return Home",
+    alert_designated_need_file: "Please select an Excel file to upload!",
+    alert_designated_no_data: "There is currently no data to download!",
+    designated_result_ok: "OK",
+    designated_result_ng: "NG",
+    designated_result_dup: "Duplicate Scan",
+    designated_result_detail: "Warehouse: {wh}  /  Part No.: {part}",
+    designated_result_ng_detail: "SN not found \u2014 please check if it was scanned incorrectly or is not in this list",
+    designated_parse_confirm: "Successfully loaded {count} designated SN record(s). Starting scan task!",
+    designated_downloading: "Exporting...",
+    generating: "Generating..."
   }
 };
 
@@ -2031,6 +2202,10 @@ function handleScannedResult(scannedText) {
           currentTargetInputId = `spsn-sn-${currentNum + 1}`;
           advanced = true;
         }
+      } else if (currentTargetInputId === "designated-scan-input") {
+        processDesignatedScan(scannedText);
+        targetElem.value = '';
+        advanced = true;
       } else if (currentTargetInputId === "query-sn-input") {
         querySNData();
       }
@@ -2061,11 +2236,11 @@ function openCameraModal(targetInputId) {
   document.getElementById('live-preview-box').style.display = 'none';
   setCameraStatus(tr('cam_status_default'));
 
-  const isSNRow = targetInputId.startsWith('insn-') || targetInputId.startsWith('outsn-') || targetInputId.startsWith('spsn-sn-');
+  const isSNRow = targetInputId.startsWith('insn-') || targetInputId.startsWith('outsn-') || targetInputId.startsWith('spsn-sn-') || targetInputId === 'designated-scan-input';
   const contRow = document.getElementById('continuous-scan-row');
   contRow.style.display = isSNRow ? 'flex' : 'none';
   const toggle = document.getElementById('continuous-scan-toggle');
-  if (toggle) toggle.checked = false;
+  if (toggle) toggle.checked = (targetInputId === 'designated-scan-input');
 
   // 這個版本部署在 GitHub Pages（非 Apps Script iframe），
   // 不再受 iframe 攝影機權限限制，所以預設直接嘗試「即時鏡頭預覽」，
@@ -2347,6 +2522,14 @@ function goHome() {
   if (issueDocNo) issueDocNo.value = '';
   const issueCustomReason = document.getElementById('issue-custom-reason');
   if (issueCustomReason) issueCustomReason.value = '';
+
+  const designatedFileInput = document.getElementById('designated-file-input');
+  if (designatedFileInput) designatedFileInput.value = '';
+  const designatedScanInput = document.getElementById('designated-scan-input');
+  if (designatedScanInput) designatedScanInput.value = '';
+  designatedList = [];
+  designatedMap = {};
+  designatedScanCounter = 0;
 
   document.querySelectorAll('input[type="password"]').forEach(i => i.value = '');
   navHistory = [];
@@ -2719,6 +2902,257 @@ function updateIssueStatusUI(rowIndex) {
     alert(tr('sys_err_prefix') + err.message);
   })
   .updateIssueStatus(rowIndex, status, completed, username, password);
+}
+
+/* ============================================================
+ * 指定序號工作區：單一指定序作業
+ * 流程：上傳 Excel(MO單號/庫別/料號/SN) -> 逐一刷入序號比對(OK/NG) ->
+ *       即時統計已刷/未完成 -> 可下載已刷/未刷 SN 清單(依庫別/料號分類)
+ * 比對邏輯完全在前端進行(上傳解析後即持有完整清單)，下載時才呼叫後端
+ * 產生 Excel 檔案，避免每次刷入都要往返伺服器。
+ * ============================================================ */
+let designatedList = [];   // [{ mo, warehouse, partNo, sn, scanned, scanOrder }]
+let designatedMap = {};    // { 大寫SN: 對應 designatedList 中的物件參照 }
+let designatedScanCounter = 0;
+
+function initDesignatedUploadPage() {
+  document.getElementById('designated-file-input').value = '';
+  showPage('page-designated-upload');
+}
+
+async function parseDesignatedFile() {
+  const fileInput = document.getElementById('designated-file-input');
+  if (!fileInput.files || fileInput.files.length === 0) {
+    alert(tr('alert_designated_need_file'));
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const btn = document.getElementById('btn-designated-parse');
+  btn.disabled = true;
+  const originalLabel = tr('btn_parse');
+  btn.innerText = tr('parsing');
+
+  try {
+    const base64Data = await readFileAsBase64(file);
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        btn.innerText = originalLabel;
+        if (!res.success) {
+          alert(tr('err_prefix') + res.msg);
+          return;
+        }
+
+        designatedList = res.list.map(item => ({
+          mo: item.mo || '',
+          warehouse: item.warehouse || '',
+          partNo: item.partNo || '',
+          sn: item.sn,
+          scanned: false,
+          scanOrder: null
+        }));
+        designatedMap = {};
+        designatedList.forEach(item => { designatedMap[item.sn] = item; });
+        designatedScanCounter = 0;
+
+        document.querySelector('#designated-log-table tbody').innerHTML = '';
+        const banner = document.getElementById('designated-result-banner');
+        banner.classList.remove('show', 'result-ok', 'result-ng', 'result-dup');
+        banner.innerHTML = '';
+
+        updateDesignatedStats();
+        alert(tr('designated_parse_confirm', { count: res.count }));
+        showPage('page-designated-scan');
+        setTimeout(() => {
+          const input = document.getElementById('designated-scan-input');
+          if (input) input.focus();
+        }, 200);
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.innerText = originalLabel;
+        alert(tr('sys_err_prefix') + err.message);
+      })
+      .parseDesignatedSNExcelForPreview({ name: file.name, mimeType: file.type, data: base64Data });
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+    alert(tr('file_read_err_prefix') + e.message);
+  }
+}
+
+// 條碼掃描槍／鍵盤輸入：按下 Enter 即視為完成一次刷入
+function handleDesignatedScanEnter(event) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  const input = document.getElementById('designated-scan-input');
+  const val = input.value;
+  input.value = '';
+  processDesignatedScan(val);
+}
+
+// 核心比對邏輯：OK(找到且未刷過) / 重複刷入(找到但已刷過) / NG(清單中查無此序號)
+function processDesignatedScan(rawSN) {
+  const sn = String(rawSN || '').trim().toUpperCase();
+  if (!sn) return;
+
+  const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+  const entry = designatedMap[sn];
+  let resultType, detailText, wh = '', part = '';
+
+  if (entry && !entry.scanned) {
+    entry.scanned = true;
+    designatedScanCounter++;
+    entry.scanOrder = designatedScanCounter;
+    resultType = 'ok';
+    wh = entry.warehouse;
+    part = entry.partNo;
+    detailText = tr('designated_result_detail', { wh: wh, part: part });
+  } else if (entry && entry.scanned) {
+    resultType = 'dup';
+    wh = entry.warehouse;
+    part = entry.partNo;
+    detailText = tr('designated_result_detail', { wh: wh, part: part });
+  } else {
+    resultType = 'ng';
+    detailText = tr('designated_result_ng_detail');
+  }
+
+  playDesignatedBeep(resultType);
+  showDesignatedResultBanner(resultType, detailText);
+  addDesignatedLogRow(timeStr, sn, resultType, wh, part);
+  updateDesignatedStats();
+
+  const input = document.getElementById('designated-scan-input');
+  if (input) { input.value = ''; input.focus(); }
+}
+
+function showDesignatedResultBanner(type, detailText) {
+  const banner = document.getElementById('designated-result-banner');
+  if (!banner) return;
+  banner.classList.remove('result-ok', 'result-ng', 'result-dup');
+  banner.classList.add('show', 'result-' + type);
+  const label = type === 'ok' ? tr('designated_result_ok') : (type === 'dup' ? tr('designated_result_dup') : tr('designated_result_ng'));
+  banner.innerHTML = `${label}<div class="designated-result-detail">${detailText}</div>`;
+}
+
+function addDesignatedLogRow(timeStr, sn, resultType, wh, part) {
+  const tbody = document.querySelector('#designated-log-table tbody');
+  if (!tbody) return;
+  const label = resultType === 'ok' ? tr('designated_result_ok') : (resultType === 'dup' ? tr('designated_result_dup') : tr('designated_result_ng'));
+  const color = resultType === 'ok' ? '#1B5E20' : (resultType === 'dup' ? '#7B5E00' : '#B71C1C');
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td>${timeStr}</td>
+    <td>${sn}</td>
+    <td style="color:${color}; font-weight:bold;">${label}</td>
+    <td>${wh || ''}</td>
+    <td>${part || ''}</td>
+  `;
+  tbody.insertBefore(row, tbody.firstChild);
+}
+
+function updateDesignatedStats() {
+  const scanned = designatedList.filter(x => x.scanned).length;
+  const total = designatedList.length;
+  const scannedEl = document.getElementById('designated-stat-scanned');
+  const remainingEl = document.getElementById('designated-stat-remaining');
+  const totalEl = document.getElementById('designated-stat-total');
+  if (scannedEl) scannedEl.innerText = scanned;
+  if (remainingEl) remainingEl.innerText = total - scanned;
+  if (totalEl) totalEl.innerText = total;
+}
+
+// 掃描結果音效：OK(高音短音)／重複刷入(中音)／NG(低音雙響警示)，不需外部音檔
+function playDesignatedBeep(type) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (type === 'ok') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } else if (type === 'dup') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(700, ctx.currentTime);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    } else {
+      [0, 0.18].forEach(delay => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, ctx.currentTime + delay);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime + delay);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.15);
+      });
+    }
+  } catch (e) {}
+}
+
+// 下載已刷/未刷 SN 清單：整理成 {mo,warehouse,partNo,sn,scanOrder} 陣列交給後端產生 Excel
+function downloadDesignatedExport(type) {
+  const rows = type === 'scanned'
+    ? designatedList.filter(x => x.scanned).map(x => ({ mo: x.mo, warehouse: x.warehouse, partNo: x.partNo, sn: x.sn, scanOrder: x.scanOrder }))
+    : designatedList.filter(x => !x.scanned).map(x => ({ mo: x.mo, warehouse: x.warehouse, partNo: x.partNo, sn: x.sn }));
+
+  if (rows.length === 0) {
+    alert(tr('alert_designated_no_data'));
+    return;
+  }
+
+  const btnId = type === 'scanned' ? 'btn-designated-download-scanned' : 'btn-designated-download-unscanned';
+  const btn = document.getElementById(btnId);
+  const originalLabel = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = tr('designated_downloading');
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false;
+      btn.innerText = originalLabel;
+      if (!res.success) {
+        alert(tr('err_prefix') + res.msg);
+        return;
+      }
+      triggerBase64Download(res.base64, res.fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled = false;
+      btn.innerText = originalLabel;
+      alert(tr('sys_err_prefix') + err.message);
+    })
+    .generateDesignatedSNExport({ rows: rows, type: type });
+}
+
+function triggerBase64Download(base64, fileName, mimeType) {
+  const byteChars = atob(base64);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: mimeType || 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 function initInboundPage() {

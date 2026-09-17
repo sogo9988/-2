@@ -9,6 +9,10 @@
 <!-- 相機/條碼掃描函式庫：html5-qrcode 用於「拍照精準掃描」的靜態照片辨識，ZXing 用於進階即時預覽的相容備援 -->
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Excel 解析函式庫：改為在瀏覽器端直接解析上傳的 xlsx，不再把整份檔案送到後端轉檔，
+     避免大檔案觸發 Apps Script 網頁應用程式的傳輸限制，也不再依賴需要手動開啟的
+     進階雲端硬碟服務(Drive) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 body {
   max-width: 850px;
@@ -2934,51 +2938,76 @@ async function parseDesignatedFile() {
   btn.innerText = tr('parsing');
 
   try {
-    const base64Data = await readFileAsBase64(file);
-    google.script.run
-      .withSuccessHandler(function(res) {
-        btn.disabled = false;
-        btn.innerText = originalLabel;
-        if (!res.success) {
-          alert(tr('err_prefix') + res.msg);
-          return;
-        }
+    // 1. 檔名檢核（忽略空白，需為「K01指定序號」，副檔名不限）
+    const rawFileName = file.name.split('.')[0].replace(/\s+/g, '');
+    if (rawFileName !== 'K01指定序號') {
+      throw new Error('【錯誤】檔案名稱不符合規定 (必須為名為 K01 指定序號 的 Excel 檔)，已立即停止動作！');
+    }
 
-        designatedList = res.list.map(item => ({
-          mo: item.mo || '',
-          warehouse: item.warehouse || '',
-          partNo: item.partNo || '',
-          sn: item.sn,
-          scanned: false,
-          scanOrder: null
-        }));
-        designatedMap = {};
-        designatedList.forEach(item => { designatedMap[item.sn] = item; });
-        designatedScanCounter = 0;
+    // 2. 在瀏覽器端直接用 SheetJS 解析，不再把整份檔案上傳到後端轉檔
+    //    (指定序號清單可能有上千筆資料，上傳整份檔案容易超過網頁應用程式的傳輸限制)
+    const arrayBuffer = await readFileAsArrayBuffer(file);
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-        document.querySelector('#designated-log-table tbody').innerHTML = '';
-        const banner = document.getElementById('designated-result-banner');
-        banner.classList.remove('show', 'result-ok', 'result-ng', 'result-dup');
-        banner.innerHTML = '';
+    // 3. 檢查標題列 A1~D1 是否固定為 MO單號／庫別／料號／SN
+    const header = rows[0] || [];
+    const expected = ['MO單號', '庫別', '料號', 'SN'];
+    for (let h = 0; h < expected.length; h++) {
+      const actual = String(header[h] || '').trim();
+      if (actual !== expected[h]) {
+        throw new Error('【錯誤】Excel 標題列不符合規定，A1~D1 必須依序固定填寫「MO單號／庫別／料號／SN」，已立即停止動作！');
+      }
+    }
 
-        updateDesignatedStats();
-        alert(tr('designated_parse_confirm', { count: res.count }));
-        showPage('page-designated-scan');
-        setTimeout(() => {
-          const input = document.getElementById('designated-scan-input');
-          if (input) input.focus();
-        }, 200);
-      })
-      .withFailureHandler(function(err) {
-        btn.disabled = false;
-        btn.innerText = originalLabel;
-        alert(tr('sys_err_prefix') + err.message);
-      })
-      .parseDesignatedSNExcelForPreview({ name: file.name, mimeType: file.type, data: base64Data });
+    // 4. 讀取資料列（最多 5000 筆），並剔除 SN 為空白的列與重複 SN
+    const MAX_ROWS = 5000;
+    const seenSN = {};
+    const list = [];
+    for (let i = 1; i < rows.length && list.length < MAX_ROWS; i++) {
+      const row = rows[i] || [];
+      const sn = String(row[3] || '').trim().toUpperCase();
+      if (sn === '') continue;
+      if (seenSN[sn]) continue; // 同一序號重複出現，僅保留第一筆
+      seenSN[sn] = true;
+      list.push({
+        mo: String(row[0] || '').trim().toUpperCase(),
+        warehouse: String(row[1] || '').trim().toUpperCase(),
+        partNo: String(row[2] || '').trim().toUpperCase(),
+        sn: sn,
+        scanned: false,
+        scanOrder: null
+      });
+    }
+
+    if (list.length === 0) {
+      throw new Error('【錯誤】A2 以下未讀取到有效的指定序號資料，已立即停止動作！');
+    }
+
+    designatedList = list;
+    designatedMap = {};
+    designatedList.forEach(item => { designatedMap[item.sn] = item; });
+    designatedScanCounter = 0;
+
+    document.querySelector('#designated-log-table tbody').innerHTML = '';
+    const banner = document.getElementById('designated-result-banner');
+    banner.classList.remove('show', 'result-ok', 'result-ng', 'result-dup');
+    banner.innerHTML = '';
+
+    updateDesignatedStats();
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+    alert(tr('designated_parse_confirm', { count: list.length }));
+    showPage('page-designated-scan');
+    setTimeout(() => {
+      const input = document.getElementById('designated-scan-input');
+      if (input) input.focus();
+    }, 200);
   } catch (e) {
     btn.disabled = false;
     btn.innerText = originalLabel;
-    alert(tr('file_read_err_prefix') + e.message);
+    alert(e.message || String(e));
   }
 }
 
@@ -3551,12 +3580,13 @@ function initBatchUploadPage() {
   showPage('page-batch-upload');
 }
 
-function readFileAsBase64(file) {
+// 讀取檔案為 ArrayBuffer，供 SheetJS 在瀏覽器端直接解析用
+function readFileAsArrayBuffer(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
-    reader.readAsDataURL(file);
+    reader.readAsArrayBuffer(file);
   });
 }
 
@@ -3584,32 +3614,48 @@ async function parseBatchFile() {
   btn.innerText = tr('parsing');
 
   try {
-    const base64Data = await readFileAsBase64(file);
-    google.script.run
-      .withSuccessHandler(function(res) {
-        btn.disabled = false;
-        btn.innerText = originalLabel;
-        if (!res.success) {
-          alert(tr('err_prefix') + res.msg);
-          return;
-        }
-        currentBatchData = { mode: mode, pallet: pallet, warehouse: warehouse, partNo: partNo, snList: res.snList };
-        const modeText = mode === 'in' ? tr('radio_in') : tr('radio_out');
-        document.getElementById('batch-confirm-summary').innerHTML = tr('batch_confirm_summary_html', {
-          mode: modeText, pallet: pallet, wh: warehouse, part: partNo, count: res.count
-        });
-        showPage('page-batch-confirm');
-      })
-      .withFailureHandler(function(err) {
-        btn.disabled = false;
-        btn.innerText = originalLabel;
-        alert(tr('sys_err_prefix') + err.message);
-      })
-      .parseUSNExcelForPreview({ name: file.name, mimeType: file.type, data: base64Data });
+    // 1. 檔名檢核 (必須完全為 K01USN，副檔名不限)
+    const rawFileName = file.name.split('.')[0].trim();
+    if (rawFileName.toUpperCase() !== 'K01USN') {
+      throw new Error('【錯誤】檔案名稱不符合規定 (必須為名為 K01USN 的 Excel 檔)，已立即停止動作！');
+    }
+
+    // 2. 在瀏覽器端直接用 SheetJS 解析，不再把整份檔案上傳到後端轉檔
+    const arrayBuffer = await readFileAsArrayBuffer(file);
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    // 3. 檢查 A1 儲存格是否為 USN
+    const a1Header = String((rows[0] && rows[0][0]) || '').trim();
+    if (a1Header.toUpperCase() !== 'USN') {
+      throw new Error('【錯誤】Excel 檔 A1 儲存格必須固定寫 USN，已立即停止動作！');
+    }
+
+    // 4. 讀取 A2:A501 (最多500筆)，並剔除空白列
+    const validSNList = [];
+    for (let i = 1; i <= 500 && i < rows.length; i++) {
+      const cellVal = String((rows[i] && rows[i][0]) || '').trim();
+      if (cellVal !== '') validSNList.push(cellVal.toUpperCase());
+    }
+
+    if (validSNList.length === 0) {
+      throw new Error('【錯誤】A2 至 A501 內未讀取到有效序號資料，已立即停止動作！');
+    }
+
+    btn.disabled = false;
+    btn.innerText = originalLabel;
+
+    currentBatchData = { mode: mode, pallet: pallet, warehouse: warehouse, partNo: partNo, snList: validSNList };
+    const modeText = mode === 'in' ? tr('radio_in') : tr('radio_out');
+    document.getElementById('batch-confirm-summary').innerHTML = tr('batch_confirm_summary_html', {
+      mode: modeText, pallet: pallet, wh: warehouse, part: partNo, count: validSNList.length
+    });
+    showPage('page-batch-confirm');
   } catch (e) {
     btn.disabled = false;
     btn.innerText = originalLabel;
-    alert(tr('file_read_err_prefix') + e.message);
+    alert(e.message || String(e));
   }
 }
 

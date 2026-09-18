@@ -723,10 +723,11 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 
 <div style="margin:15px 0;">
   <label style="font-weight:bold;" data-i18n="label_op_type">操作類型：</label>
-  <label style="margin-left:10px;"><input type="radio" name="batch-mode" value="in" checked> <span data-i18n="radio_in">入庫</span></label>
-  <label style="margin-left:15px;"><input type="radio" name="batch-mode" value="out"> <span data-i18n="radio_out">出庫(發料)</span></label>
+  <label style="margin-left:10px;"><input type="radio" name="batch-mode" value="in" checked onchange="toggleBatchModeFields()"> <span data-i18n="radio_in">入庫</span></label>
+  <label style="margin-left:15px;"><input type="radio" name="batch-mode" value="out" onchange="toggleBatchModeFields()"> <span data-i18n="radio_out">出庫(發料)</span></label>
 </div>
 
+<div id="batch-in-fields">
 <div class="input-with-btn">
   <label style="min-width:70px;" data-i18n="label_pallet">棧板號：</label>
   <input type="text" id="batch-pallet" class="form-control" placeholder="請輸入棧板號" data-i18n-ph="ph_pallet_manual">
@@ -739,6 +740,8 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   <label style="min-width:70px;" data-i18n="label_partno">料號：</label>
   <input type="text" id="batch-partno" class="form-control" placeholder="請輸入料號" data-i18n-ph="ph_partno">
 </div>
+</div>
+<p id="batch-out-hint" style="font-size:12px; color:gray; display:none;" data-i18n="batch_out_hint">出庫(發料)模式僅需比對序號，不需填寫棧板號／庫別／料號，系統會自動找出符合的序號並移除。</p>
 
 <div style="margin: 15px 0;">
   <label style="font-weight:bold;" data-i18n="label_choose_file">選擇 Excel 檔案 (K01USN.xlsx)：</label><br>
@@ -1641,6 +1644,8 @@ const I18N = {
     success_batch_out: "批量發料完成！指定的 {n} 個序號已全數成功從庫存中移除。",
     exception_batch_out: "批量發料處理完畢！成功發料移除 {n} 個序號。但其中有 {m} 個序號「不存在於庫房中」，請選擇是否檢視。",
     batch_confirm_summary_html: '<p><strong>操作類型：</strong>{mode}</p><p><strong>棧板號：</strong>{pallet}</p><p><strong>庫別：</strong>{wh}</p><p><strong>料號：</strong>{part}</p><p><strong>檔案內共讀取到序號：</strong><span style="color:blue; font-size:20px;">{count}</span> 筆</p><p style="color:#d32f2f;">請確認以上總數無誤，確認送出後才會實際寫入/移除庫存資料。</p>',
+    batch_confirm_summary_out_html: '<p><strong>操作類型：</strong>{mode}</p><p><strong>檔案內共讀取到序號：</strong><span style="color:blue; font-size:20px;">{count}</span> 筆</p><p style="color:#d32f2f;">系統將依序號比對庫存總表並直接移除，不限棧板／庫別／料號；請確認以上總數無誤，確認送出後才會實際移除庫存資料。</p>',
+    batch_out_hint: "出庫(發料)模式僅需比對序號，不需填寫棧板號／庫別／料號，系統會自動找出符合的序號並移除。",
     btn_page_back: "⬅ 上一頁",
     choice_rename_pallet: "新增更換整個棧板編號",
     rename_title: "整棧板編號變更",
@@ -1959,6 +1964,8 @@ const I18N = {
     success_batch_out: "Batch outbound complete! The {n} specified SN(s) have all been removed from inventory.",
     exception_batch_out: 'Batch outbound processing complete! {n} SN(s) were successfully removed. However, {m} SN(s) were "not found in inventory" \u2014 would you like to view them?',
     batch_confirm_summary_html: '<p><strong>Operation Type:</strong>{mode}</p><p><strong>Pallet No.:</strong>{pallet}</p><p><strong>Warehouse:</strong>{wh}</p><p><strong>Part No.:</strong>{part}</p><p><strong>Total SN(s) read from file:</strong><span style="color:blue; font-size:20px;">{count}</span></p><p style="color:#d32f2f;">Please confirm the total is correct \u2014 submitting will actually write/remove inventory data.</p>',
+    batch_confirm_summary_out_html: '<p><strong>Operation Type:</strong>{mode}</p><p><strong>Total SN(s) read from file:</strong><span style="color:blue; font-size:20px;">{count}</span></p><p style="color:#d32f2f;">The system will match these SNs against the inventory sheet and remove them directly, regardless of pallet/warehouse/part. Please confirm the total is correct \u2014 submitting will actually remove inventory data.</p>',
+    batch_out_hint: "Outbound (dispatch) mode only matches by SN \u2014 no need to fill in Pallet No. / Warehouse / Part No. The system will automatically find and remove matching SNs.",
     btn_page_back: "⬅ Back",
     choice_rename_pallet: "Change Entire Pallet No.",
     rename_title: "Pallet Number Change",
@@ -3577,7 +3584,23 @@ function initBatchUploadPage() {
   document.getElementById('batch-file-input').value = '';
   const inRadio = document.querySelector('input[name="batch-mode"][value="in"]');
   if (inRadio) inRadio.checked = true;
+  toggleBatchModeFields();
   showPage('page-batch-upload');
+}
+
+// 出庫(發料)模式不需要棧板號／庫別／料號，只依序號比對；切換操作類型時顯示/隱藏對應欄位
+function toggleBatchModeFields() {
+  const modeInput = document.querySelector('input[name="batch-mode"]:checked');
+  const mode = modeInput ? modeInput.value : 'in';
+  const inFields = document.getElementById('batch-in-fields');
+  const outHint = document.getElementById('batch-out-hint');
+  if (mode === 'out') {
+    inFields.style.display = 'none';
+    outHint.style.display = 'block';
+  } else {
+    inFields.style.display = '';
+    outHint.style.display = 'none';
+  }
 }
 
 // 讀取檔案為 ArrayBuffer，供 SheetJS 在瀏覽器端直接解析用
@@ -3591,14 +3614,15 @@ function readFileAsArrayBuffer(file) {
 }
 
 async function parseBatchFile() {
+  const modeInput = document.querySelector('input[name="batch-mode"]:checked');
+  const mode = modeInput ? modeInput.value : 'in';
   const pallet = document.getElementById('batch-pallet').value.trim().toUpperCase();
   const warehouse = document.getElementById('batch-warehouse').value.trim().toUpperCase();
   const partNo = document.getElementById('batch-partno').value.trim().toUpperCase();
   const fileInput = document.getElementById('batch-file-input');
-  const modeInput = document.querySelector('input[name="batch-mode"]:checked');
-  const mode = modeInput ? modeInput.value : 'in';
 
-  if (!pallet || !warehouse || !partNo) {
+  // 出庫(發料)模式只依序號比對，不需要棧板號／庫別／料號
+  if (mode === 'in' && (!pallet || !warehouse || !partNo)) {
     alert(tr('alert_fill_pallet_wh_part'));
     return;
   }
@@ -3646,11 +3670,18 @@ async function parseBatchFile() {
     btn.disabled = false;
     btn.innerText = originalLabel;
 
-    currentBatchData = { mode: mode, pallet: pallet, warehouse: warehouse, partNo: partNo, snList: validSNList };
     const modeText = mode === 'in' ? tr('radio_in') : tr('radio_out');
-    document.getElementById('batch-confirm-summary').innerHTML = tr('batch_confirm_summary_html', {
-      mode: modeText, pallet: pallet, wh: warehouse, part: partNo, count: validSNList.length
-    });
+    if (mode === 'in') {
+      currentBatchData = { mode: mode, pallet: pallet, warehouse: warehouse, partNo: partNo, snList: validSNList };
+      document.getElementById('batch-confirm-summary').innerHTML = tr('batch_confirm_summary_html', {
+        mode: modeText, pallet: pallet, wh: warehouse, part: partNo, count: validSNList.length
+      });
+    } else {
+      currentBatchData = { mode: mode, pallet: '', warehouse: '', partNo: '', snList: validSNList };
+      document.getElementById('batch-confirm-summary').innerHTML = tr('batch_confirm_summary_out_html', {
+        mode: modeText, count: validSNList.length
+      });
+    }
     showPage('page-batch-confirm');
   } catch (e) {
     btn.disabled = false;

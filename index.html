@@ -353,6 +353,40 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   100% { top: 10%; }
 }
 
+/* 掃描對準框：畫面上的可視框線對應實際拿去解碼的裁切區域，
+   讓使用者知道要把條碼對準哪裡，也讓偵測只鎖定這塊區域、放大後辨識，
+   而不是整張畫面縮小處理，可大幅提升小條碼/遠距離的辨識成功率。 */
+.scanner-guide-box {
+  position: absolute;
+  top: 32%;
+  left: 8%;
+  width: 84%;
+  height: 36%;
+  border: 3px solid #00e676;
+  border-radius: 8px;
+  box-shadow: 0 0 0 2000px rgba(0,0,0,0.35);
+  z-index: 9;
+  pointer-events: none;
+}
+.scanner-guide-box::before,
+.scanner-guide-box::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: #00e676;
+}
+.zoom-slider-row {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.zoom-slider-row input[type="range"] {
+  flex: 1;
+}
+
 .camera-btn-row {
   display: flex;
   gap: 8px;
@@ -1338,8 +1372,14 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
     <button type="button" class="btn-try-live" onclick="tryLivePreview()" data-i18n="btn_try_live">嘗試即時鏡頭預覽（進階／部分環境支援）</button>
 
     <div class="camera-video-container" id="live-preview-box" style="display:none;">
+      <div class="scanner-guide-box"></div>
       <div class="scanner-laser"></div>
       <video id="scanner-video" playsinline autoplay muted></video>
+      <canvas id="scanner-canvas" style="display:none;"></canvas>
+    </div>
+    <div class="zoom-slider-row" id="zoom-slider-row">
+      <span data-i18n="cam_zoom_label">🔍 數位變焦</span>
+      <input type="range" id="zoom-slider" min="1" max="1" step="0.1" value="1" oninput="applyZoom(this.value)">
     </div>
     <button type="button" id="btn-torch" class="btn-camera-tool" onclick="toggleTorch()" style="display:none; width:100%; margin-top:8px;" data-i18n="btn_torch_label">💡 手電筒</button>
 
@@ -1600,6 +1640,7 @@ const I18N = {
     cam_status_live_trying: "正在嘗試啟動即時相機預覽...",
     cam_status_live_ok: "即時掃描中，請將條碼對準框內...",
     cam_status_live_ok_compat: "即時掃描中 (相容模式)，請將條碼對準框內...",
+    cam_zoom_label: "🔍 數位變焦",
     cam_status_live_fail: "此環境的即時預覽被系統擋下，請改用上方「拍照掃描」按鈕（本系統主要辨識方式）。",
     cam_status_live_unsupported: "此瀏覽器不支援即時掃描，請使用上方「拍照精準掃描」。",
     alert_component_loading: "條碼辨識元件尚未載入完成，請稍後再試一次。",
@@ -1920,6 +1961,7 @@ const I18N = {
     cam_status_live_trying: "Trying to start the live camera preview...",
     cam_status_live_ok: "Live scanning, please align the barcode within the frame...",
     cam_status_live_ok_compat: "Live scanning (compatibility mode), please align the barcode within the frame...",
+    cam_zoom_label: "🔍 Digital Zoom",
     cam_status_live_fail: 'Live preview is blocked in this environment. Please use the "Photo Scan" button above (the main method for this system).',
     cam_status_live_unsupported: 'This browser does not support live scanning. Please use "Photo Scan" above.',
     alert_component_loading: "The barcode recognition component hasn't finished loading yet, please try again shortly.",
@@ -2245,6 +2287,7 @@ function openCameraModal(targetInputId) {
   modal.style.display = "block";
   document.getElementById('btn-torch').style.display = 'none';
   document.getElementById('live-preview-box').style.display = 'none';
+  document.getElementById('zoom-slider-row').style.display = 'none';
   setCameraStatus(tr('cam_status_default'));
 
   const isSNRow = targetInputId.startsWith('insn-') || targetInputId.startsWith('outsn-') || targetInputId.startsWith('spsn-sn-') || targetInputId === 'designated-scan-input';
@@ -2278,7 +2321,12 @@ async function tryLivePreview() {
   try {
     try {
       mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [{ focusMode: "continuous" }]
+        }
       });
     } catch (e1) {
       try {
@@ -2300,10 +2348,45 @@ async function tryLivePreview() {
     currentTrack = mediaStream.getVideoTracks()[0];
     try {
       const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+
       if (caps && caps.torch) {
         document.getElementById('btn-torch').style.display = 'inline-block';
       }
+
+      // 嘗試強制開啟「連續自動對焦」，多數 Android 手機瀏覽器支援，
+      // 對焦不準是條碼辨識失敗最常見的原因之一
+      if (caps && caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) {
+        try { await currentTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+      }
+
+      // 若相機支援數位變焦，顯示變焦滑桿，讓使用者可手動放大遠處/細小的條碼
+      if (caps && caps.zoom && caps.zoom.max > caps.zoom.min) {
+        const zoomSlider = document.getElementById('zoom-slider');
+        zoomSlider.min = caps.zoom.min;
+        zoomSlider.max = caps.zoom.max;
+        zoomSlider.step = caps.zoom.step || 0.1;
+        zoomSlider.value = caps.zoom.min;
+        document.getElementById('zoom-slider-row').style.display = 'flex';
+      }
     } catch (e) {}
+
+    // 對準框裁切用的畫布：只取綠色對準框內的畫面並放大處理，
+    // 而不是整張畫面縮小辨識，可大幅提升小條碼/遠距離的辨識成功率
+    const canvas = document.getElementById('scanner-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    let isDetecting = false;
+
+    function captureGuideBoxFrame() {
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (!vw || !vh) return null;
+      // 對應 CSS 對準框的比例 (top 32%/left 8%/width 84%/height 36%)
+      const sx = vw * 0.08, sy = vh * 0.32, sw = vw * 0.84, sh = vh * 0.36;
+      const UPSCALE = 2; // 放大倍率，提高條碼在畫面中的有效解析度
+      canvas.width = sw * UPSCALE;
+      canvas.height = sh * UPSCALE;
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      return canvas;
+    }
 
     if ('BarcodeDetector' in window) {
       setCameraStatus(tr('cam_status_live_ok'));
@@ -2312,26 +2395,54 @@ async function tryLivePreview() {
       });
 
       scanInterval = setInterval(async () => {
+        if (isDetecting) return; // 避免上一次偵測還沒跑完就重疊觸發
+        if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+        const frame = captureGuideBoxFrame();
+        if (!frame) return;
+        isDetecting = true;
         try {
-          if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            const barcodes = await barcodeDetector.detect(video);
-            if (barcodes.length > 0) {
-              handleScannedResult(barcodes[0].rawValue);
-            }
+          const barcodes = await barcodeDetector.detect(frame);
+          if (barcodes.length > 0) {
+            handleScannedResult(barcodes[0].rawValue);
+            return;
           }
         } catch (e) {
           console.error(e);
+        } finally {
+          isDetecting = false;
         }
-      }, 1000);
+      }, 280);
 
     } else if (typeof ZXing !== 'undefined') {
       setCameraStatus(tr('cam_status_live_ok_compat'));
       zxingReader = new ZXing.BrowserMultiFormatReader();
-      zxingReader.decodeFromVideoDevice(null, 'scanner-video', (result, err) => {
-        if (result) {
-          handleScannedResult(result.getText());
-        }
-      });
+
+      // 優先使用裁切對準框＋放大後的畫面逐格解碼，比對整個 video 畫面辨識度更高；
+      // 若目前載入的 ZXing 版本不支援 decodeFromCanvas，則自動退回舊版整幀辨識方式
+      if (typeof zxingReader.decodeFromCanvas === 'function') {
+        scanInterval = setInterval(async () => {
+          if (isDetecting) return;
+          if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+          const frame = captureGuideBoxFrame();
+          if (!frame) return;
+          isDetecting = true;
+          try {
+            const result = zxingReader.decodeFromCanvas(frame);
+            if (result) handleScannedResult(result.getText());
+          } catch (e) {
+            // 找不到條碼是正常情況(NotFoundException)，忽略即可
+          } finally {
+            isDetecting = false;
+          }
+        }, 280);
+      } else {
+        zxingReader.decodeFromVideoDevice(null, 'scanner-video', (result, err) => {
+          if (result) {
+            handleScannedResult(result.getText());
+          }
+        });
+      }
+
     } else {
       setCameraStatus(tr('cam_status_live_unsupported'));
     }
@@ -2340,6 +2451,12 @@ async function tryLivePreview() {
     setCameraStatus(tr('cam_status_live_fail'));
     liveBox.style.display = 'none';
   }
+}
+
+// 數位變焦：拖動滑桿即時套用相機的 zoom 能力(若裝置支援)
+function applyZoom(value) {
+  if (!currentTrack) return;
+  currentTrack.applyConstraints({ advanced: [{ zoom: Number(value) }] }).catch(() => {});
 }
 
 function toggleTorch() {
@@ -2368,16 +2485,69 @@ function handleManualCaptureFile(fileInputEl) {
     return;
   }
   if (!window._manualQrInstance) {
-    window._manualQrInstance = new Html5Qrcode("manual-decode-holder");
+    window._manualQrInstance = new Html5Qrcode("manual-decode-holder", {
+      // 優先使用瀏覽器原生 BarcodeDetector（若支援），比純 JS 解碼器更快更準
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
   }
+
   window._manualQrInstance.scanFile(file, true)
     .then(decodedText => {
       handleScannedResult(decodedText);
     })
     .catch(err => {
-      console.error(err);
-      setCameraStatus(tr('cam_status_fail'));
+      console.error('第一次辨識失敗，嘗試裁切放大中央區域再重試一次:', err);
+      // 第一次辨識失敗時，自動裁切照片中央區域並放大後重試一次，
+      // 有機會解決「背景太雜」或「條碼在畫面中偏小」導致辨識失敗的情況
+      retryDecodeWithCenterCrop(file);
     });
+}
+
+// 第一次辨識失敗的備援：裁切照片中央區域並放大，提高條碼在畫面中的比例後再試一次
+function retryDecodeWithCenterCrop(file) {
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = () => {
+    try {
+      const cropRatio = 0.7; // 取中央 70% 範圍
+      const sx = img.width * (1 - cropRatio) / 2;
+      const sy = img.height * (1 - cropRatio) / 2;
+      const sw = img.width * cropRatio;
+      const sh = img.height * cropRatio;
+
+      const canvas = document.createElement('canvas');
+      const UPSCALE = 1.6;
+      canvas.width = sw * UPSCALE;
+      canvas.height = sh * UPSCALE;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(blob => {
+        URL.revokeObjectURL(objectUrl);
+        if (!blob) {
+          setCameraStatus(tr('cam_status_fail'));
+          return;
+        }
+        const croppedFile = new File([blob], 'crop.jpg', { type: 'image/jpeg' });
+        window._manualQrInstance.scanFile(croppedFile, true)
+          .then(decodedText => {
+            handleScannedResult(decodedText);
+          })
+          .catch(err2 => {
+            console.error(err2);
+            setCameraStatus(tr('cam_status_fail'));
+          });
+      }, 'image/jpeg', 0.92);
+    } catch (e) {
+      URL.revokeObjectURL(objectUrl);
+      setCameraStatus(tr('cam_status_fail'));
+    }
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(objectUrl);
+    setCameraStatus(tr('cam_status_fail'));
+  };
+  img.src = objectUrl;
 }
 
 function closeCameraModal() {
@@ -2399,6 +2569,11 @@ function closeCameraModal() {
   currentTrack = null;
   torchOn = false;
   continuousCount = 0;
+
+  const zoomRow = document.getElementById('zoom-slider-row');
+  if (zoomRow) zoomRow.style.display = 'none';
+  const zoomSlider = document.getElementById('zoom-slider');
+  if (zoomSlider) zoomSlider.value = zoomSlider.min || 1;
 
   const video = document.getElementById('scanner-video');
   if (video) {

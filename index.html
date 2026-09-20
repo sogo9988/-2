@@ -19,8 +19,7 @@ body {
   margin: 0 auto;
   padding: 30px 10px;
   min-height: 100vh;
-  background: linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.55)),
-  url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed;
+  background: transparent; /* 背景圖改由 #bg-stage 依頁面層級切換 */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -463,41 +462,272 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   margin-bottom: 10px;
   font-size: 14px;
 }
+
+/* ============================================================
+ * 背景圖：依「頁面層級」切換（第 1 層＝首頁 … 第 6 層＝完成頁）
+ * 圖片本體在 <style id="bg-images">；圖案一律 cover 滿版，
+ * 會依裝置畫面大小（手機直式／橫式／電腦桌面）自動縮放置中裁切。
+ * ============================================================ */
+html { background: #3b2c1e; }
+
+#bg-stage {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100lvh;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: #3b2c1e;
+}
+.bg-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  visibility: hidden;
+  /* 舊圖等新圖淡入完成後才消失，切換時不會露出底色 */
+  transition: opacity 0s linear .6s, visibility 0s linear .6s;
+}
+.bg-layer.on {
+  opacity: 1;
+  visibility: visible;
+  z-index: 1;
+  transition: opacity .6s ease;
+}
+.bg-layer[data-level="1"] { background-image: var(--bg-lv1); }
+.bg-layer[data-level="2"] { background-image: var(--bg-lv2); }
+.bg-layer[data-level="3"] { background-image: var(--bg-lv3); }
+.bg-layer[data-level="4"] { background-image: var(--bg-lv4); }
+.bg-layer[data-level="5"] { background-image: var(--bg-lv5); }
+.bg-layer[data-level="6"] { background-image: var(--bg-lv6); }
+
+/* 有表格／查詢結果的頁面：背景圖調淡（想再淡或再濃，只要改下面這個透明度數字） */
+#bg-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(255, 252, 245, 0.68);
+  opacity: 0;
+  transition: opacity .4s ease;
+}
+#bg-stage.soft #bg-veil { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-layer, #bg-veil { transition: none !important; }
+}
+
+/* ============================================================
+ * 選單頁（只有按鈕／選項）：去除白色外框，只留按鈕浮在圖上。
+ * 為了少遮到圖裡的主角，選單整塊（.menu-box）不放正中央：
+ *   電腦／橫式畫面：靠左上（每張圖的左上都沒有主角）
+ *   手機／直式畫面：靠上，左右位置與背景圖的水平取景，依各層圖案個別調整
+ * ============================================================ */
+.page.page-menu {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  padding: 0;
+  text-align: left;
+}
+.page.page-menu.active {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.menu-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 50px 14px 28px 14px;
+}
+.page-menu h2,
+.page-menu h3,
+.page-menu p {
+  color: #fff !important;
+  text-align: left;
+  text-shadow: 0 1px 2px rgba(0,0,0,.85), 0 0 10px rgba(0,0,0,.6), 0 0 22px rgba(0,0,0,.35);
+}
+.page-menu h2 { margin: 0; font-size: clamp(20px, 5.2vw, 28px); font-weight: 700; letter-spacing: .04em; max-width: 11em; text-wrap: balance; }
+.page-menu h3 { margin: 0; font-size: clamp(17px, 4.4vw, 22px); font-weight: 700; letter-spacing: .04em; max-width: 11em; text-wrap: balance; }
+.page-menu p  { margin: 4px 0 0 !important; font-size: 14px; font-weight: 600; }
+
+/* 選單按鈕：長條形、單行字、靠左排成一欄；寬度以「該頁」最長的那個按鈕文字為準
+   （JS 的 fitButtonLabels_ 會算出 --btn-w 與 --cols）。
+   「二欄」頁面（作業模式）：加了 class="pair" 的短按鈕排成兩欄，其餘長按鈕橫跨兩欄。 */
+.page {
+  --btn-w: 130px;
+  --btn-h: 34px;        /* 長按鈕高度 */
+  --btn-h-pair: 28px;   /* 二欄短按鈕高度（上下空間更緊） */
+}
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 1), var(--btn-w));
+  justify-content: start;
+  gap: 5px;
+  max-width: calc(100vw - 28px);
+  margin: 12px 0 0;
+}
+.menu-grid > button {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: var(--btn-h);
+  min-height: 0;
+  padding: 0 8px;
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 600;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+}
+.menu-grid > button.pair { grid-column: auto; height: var(--btn-h-pair); }
+
+/* 手機／直式：選單一律靠左上；各層背景圖的水平取景，是依圖裡主角的位置挑過的
+   （讓靠左的選單少遮到貓咪，也不擋住第 1 層的「CSD倉」招牌）。 */
+@media (max-aspect-ratio: 1/1) {
+  .bg-layer[data-level="1"] { background-position: 50% 50%; }
+  .bg-layer[data-level="2"] { background-position: 90% 50%; }
+  .bg-layer[data-level="3"] { background-position: 80% 50%; }
+}
+
+/* 電腦／橫式：選單靠左上 */
+@media (min-aspect-ratio: 1/1) {
+  .page.page-menu.active { align-items: flex-start; }
+  .menu-box { margin-left: clamp(16px, 3.5vw, 64px); margin-top: 64px; }
+}
+
+/* 首頁：整塊往左上貼齊，標題與右上角的中英切換按鈕同高（切換按鈕 top:14px、高 30px） */
+#page-welcome .menu-box { margin-top: 14px; margin-left: 16px; }
+#page-welcome h2 { line-height: 30px; }
+
+/* 「請選擇入庫方式」：靠右，選單頂端剛好貼在第 3 層背景圖（原圖）天花板燈泡的下緣。
+   燈泡下緣約在圖高的 126/1024 處；背景是 cover 滿版置中，所以換算成畫面高度是：
+   50lvh − 0.377 × max(畫面寬, 畫面高)。橫式畫面裡燈泡會被裁掉，就退回離上緣 64px。 */
+#page-inbound-choice.page-menu.active { align-items: flex-end; }
+#page-inbound-choice .menu-box {
+  margin-right: clamp(14px, 3.5vw, 64px);
+  margin-top: 100px;
+  margin-top: max(64px, calc(50lvh - 0.377 * max(100vw, 100lvh)));
+}
+
+/* ============================================================
+ * 表單頁按鈕（維持原本的統一尺寸）：同一種按鈕高度、字級、圓角一致，
+ * 動作按鈕等寬排列，手機自動變兩欄
+ * ============================================================ */
+.btn-group > button,
+.page > button:not(.btn-page-back),
+button.btn-std {
+  min-height: 48px;
+  padding: 10px 16px;
+  font-size: 16px;
+  line-height: 1.3;
+  border-radius: 8px;
+  white-space: normal;
+}
+.page > button:not(.btn-page-back) { min-width: 160px; }
+button.btn-std { min-width: 110px; }
+.btn-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 240px));
+  gap: 12px;
+  margin-top: 20px;
+}
+.btn-group > button { width: 100%; }
+@media (max-width: 640px) {
+  .btn-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* 單數顆時最後一顆撐滿整列，畫面比較整齊 */
+  .btn-group > button:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(33, 150, 243, .65);
+}
+
+@media (max-width: 480px) {
+  .page { padding: 22px 14px; }
+}
 </style>
+<style id="bg-images">/* 背景圖網址由下面的 script 設定（圖片放在 GitHub） */</style>
+<script>
+/* ===== 背景圖 =====
+   6 張圖（lv1.webp ~ lv6.webp）放在跟這個網頁同一個資料夾
+   （GitHub 倉庫 -2 的最上層，跟 index.html 放在一起）。BG_BASE 留空就是讀同一個資料夾；
+   之後想改放別處，把 BG_BASE 換成資料夾網址（結尾要有 /）即可。
+   換圖之後如果畫面還是舊圖，把 BG_VERSION 加 1 */
+var BG_BASE = '';
+var BG_VERSION = '1';
+(function () {
+  function url(n) { return BG_BASE + 'lv' + n + '.webp?v=' + BG_VERSION; }
+  for (var n = 1; n <= 6; n++) {
+    document.documentElement.style.setProperty('--bg-lv' + n, 'url("' + url(n) + '")');
+  }
+  // 頁面載入完成後，把其他層級的圖先抓進快取，換頁時背景才不會慢半拍
+  window.addEventListener('load', function () {
+    for (var n = 1; n <= 6; n++) { var im = new Image(); im.src = url(n); }
+  });
+})();
+</script>
 </head>
 <body>
 
+<!-- 背景圖舞台：依頁面層級切換，有表格的頁面會加上淡色遮罩 -->
+<div id="bg-stage" aria-hidden="true">
+  <div class="bg-layer on" data-level="1"></div>
+  <div class="bg-layer" data-level="2"></div>
+  <div class="bg-layer" data-level="3"></div>
+  <div class="bg-layer" data-level="4"></div>
+  <div class="bg-layer" data-level="5"></div>
+  <div class="bg-layer" data-level="6"></div>
+  <div id="bg-veil"></div>
+</div>
+
 <!-- 1. 歡迎首頁 -->
-<div id="page-welcome" class="page active" style="text-align: center; margin-top: 60px;">
+<div id="page-welcome" class="page page-menu active" data-lv="1">
 <div class="lang-switch">
   <button type="button" id="lang-btn-zh" onclick="setLanguage('zh')">中文</button>
   <button type="button" id="lang-btn-en" onclick="setLanguage('en')">English</button>
 </div>
+<div class="menu-box">
 <h2 data-i18n="welcome_title">K01倉庫管理系統</h2>
-<p style="color: #666; margin-top: 10px;" data-i18n="welcome_subtitle">入庫/發料/查詢</p>
-<button style="background: #2196F3; color:white; margin-top: 15px;" onclick="showPage('page-choice')" data-i18n="welcome_start">K01庫房專用</button>
-<br>
-<button style="background: #6D4C41; color:white; margin-top: 10px;" onclick="showPage('page-special-choice')" data-i18n="choice_special">K01特殊倉</button>
-<br>
-<button style="background: #B71C1C; color:white; margin-top: 10px;" onclick="showPage('page-issue-menu')" data-i18n="choice_issue">K01異常帳務區</button>
-<br>
-<button style="background: #4527A0; color:white; margin-top: 10px;" onclick="showPage('page-designated-menu')" data-i18n="choice_designated">指定序號工作區</button>
-<br>
-<button style="background: #263238; color:white; margin-top: 10px;" onclick="goToExecutorLogin()" data-i18n="choice_executor">執行者專區</button>
+<p data-i18n="welcome_subtitle">入庫/發料/查詢</p>
+<div class="menu-grid menu-many">
+<button style="background: #2196F3; color:white;" onclick="showPage('page-choice')" data-i18n="welcome_start">K01庫房專用</button>
+<button style="background: #6D4C41; color:white;" onclick="showPage('page-special-choice')" data-i18n="choice_special">K01特殊倉</button>
+<button style="background: #B71C1C; color:white;" onclick="showPage('page-issue-menu')" data-i18n="choice_issue">K01異常帳務區</button>
+<button style="background: #4527A0; color:white;" onclick="showPage('page-designated-menu')" data-i18n="choice_designated">指定序號工作區</button>
+<button style="background: #263238; color:white;" onclick="goToExecutorLogin()" data-i18n="choice_executor">執行者專區</button>
+</div>
+</div>
 </div>
 
 <!-- 2. 選擇模式頁 -->
-<div id="page-choice" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-choice" class="page page-menu" data-lv="2">
+<div class="menu-box">
 <h3 data-i18n="choice_title">請選擇作業模式</h3>
-<div class="btn-group" style="justify-content: center; flex-wrap: wrap;">
-<button style="background: #2196F3; color:white;" onclick="showPage('page-inbound-choice')" data-i18n="choice_inbound">入庫作業</button>
-<button style="background: #4CAF50; color:white;" onclick="showPage('page-outbound-choice')" data-i18n="choice_outbound">發料作業</button>
-<button style="background: #795548; color:white;" onclick="initBatchUploadPage()" data-i18n="choice_batch">批量上傳</button>
-<button style="background: #FF5722; color:white;" onclick="showPage('page-query-choice')" data-i18n="choice_query">查詢</button>
+<div class="menu-grid menu-many">
+<button class="pair" style="background: #2196F3; color:white;" onclick="showPage('page-inbound-choice')" data-i18n="choice_inbound">入庫作業</button>
+<button class="pair" style="background: #4CAF50; color:white;" onclick="showPage('page-outbound-choice')" data-i18n="choice_outbound">發料作業</button>
+<button class="pair" style="background: #795548; color:white;" onclick="initBatchUploadPage()" data-i18n="choice_batch">批量上傳</button>
+<button class="pair" style="background: #FF5722; color:white;" onclick="showPage('page-query-choice')" data-i18n="choice_query">查詢</button>
 <button style="background: #607D8B; color:white;" onclick="initAdjustPage()" data-i18n="choice_adjust">棧板/料號變更</button>
-<button style="background: #8E24AA; color:white;" onclick="initRenamePalletPage()" data-i18n="choice_rename_pallet">新增更換整個棧板編號</button>
+<button style="background: #8E24AA; color:white;" onclick="initRenamePalletPage()" data-i18n="choice_rename_pallet">更換整個棧板號</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
-<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
 </div>
 
 <!-- 2.1 執行者專區：登入頁 -->
@@ -514,14 +744,16 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 
 <!-- 2.2 執行者專區：選單頁（未來可持續在這裡加更多管理選項） -->
-<div id="page-executor-menu" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-executor-menu" class="page page-menu" data-lv="3">
+<div class="menu-box">
 <h3 data-i18n="exec_menu_title">🔒 執行者專區</h3>
 <p id="exec-menu-welcome" style="color:#666;"></p>
-<div class="btn-group" style="justify-content:center; flex-wrap:wrap;">
+<div class="menu-grid">
   <button style="background:#00796B; color:white;" onclick="goToRegionManage()" data-i18n="exec_menu_region">空棧板／區域設定</button>
   <button style="background:#5D4037; color:white;" onclick="goToChangeLog()" data-i18n="exec_menu_changelog">所有異動明細</button>
+<button onclick="executorLogout()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
-<br><button onclick="executorLogout()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
 </div>
 
 <!-- 2.3 執行者專區：區域設定頁 -->
@@ -536,7 +768,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   <input type="text" id="exec-new-region" class="form-control" style="width:120px;" placeholder="區域名稱，例如 2F" data-i18n-ph="ph_region_name">
   <input type="text" id="exec-new-prefix" class="form-control" style="width:120px;" placeholder="棧板前綴，例如 2F-" data-i18n-ph="ph_region_prefix">
   <input type="number" id="exec-new-limit" class="form-control" style="width:120px;" placeholder="棧板編號上限" data-i18n-ph="ph_region_limit" min="1">
-  <button style="background:#2196F3; color:white;" onclick="submitSaveRegion()" data-i18n="btn_region_save">儲存</button>
+  <button class="btn-std" style="background:#2196F3; color:white;" onclick="submitSaveRegion()" data-i18n="btn_region_save">儲存</button>
 </div>
 
 <button onclick="showPage('page-executor-menu')" style="background:#666; color:white;" data-i18n="back_home">回上一頁</button>
@@ -564,13 +796,15 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 
 <!-- 2.5 入庫模式選擇頁 -->
-<div id="page-inbound-choice" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-inbound-choice" class="page page-menu" data-lv="3">
+<div class="menu-box">
 <h3 data-i18n="inbound_choice_title">請選擇入庫方式</h3>
-<div class="btn-group" style="justify-content: center;">
+<div class="menu-grid">
 <button style="background: #2196F3; color:white;" onclick="initInboundPage()" data-i18n="inbound_choice_bysn">新增(序號)入庫資料</button>
 <button style="background: #009688; color:white;" onclick="initPartInboundPage()" data-i18n="inbound_choice_bypart">以料號入庫</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
-<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
 </div>
 
 <!-- 3. 新增(序號)入庫輸入頁 -->
@@ -664,14 +898,16 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 
 <!-- 5. 發料模式選擇頁 -->
-<div id="page-outbound-choice" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-outbound-choice" class="page page-menu" data-lv="3">
+<div class="menu-box">
 <h3 data-i18n="outbound_choice_title">請選擇發料方式</h3>
-<div class="btn-group" style="justify-content: center;">
+<div class="menu-grid">
 <button style="background: #FF9800; color:white;" onclick="showPage('page-out-pallet')" data-i18n="outbound_choice_pallet">整棧板發料</button>
 <button style="background: #9C27B0; color:white;" onclick="initOutboundSNPage()" data-i18n="outbound_choice_sn">依刷入序號發料</button>
 <button style="background: #3F51B5; color:white;" onclick="initPickOutboundPage()" data-i18n="outbound_choice_pick">指定棧板/料號發貨</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
-<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
 </div>
 
 <!-- 6. 整棧發料查詢頁 -->
@@ -808,14 +1044,16 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 
 <!-- 10. 查詢：選擇查詢方式頁 -->
-<div id="page-query-choice" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-query-choice" class="page page-menu" data-lv="3">
+<div class="menu-box">
 <h3 data-i18n="query_choice_title">請選擇查詢方式</h3>
-<div class="btn-group" style="justify-content: center;">
+<div class="menu-grid">
 <button style="background: #4CAF50; color:white;" onclick="goToSNQuery()" data-i18n="btn_sn_query_choice">序號查詢</button>
 <button style="background: #00796B; color:white;" onclick="goToInventoryQuery()" data-i18n="btn_inv_query_choice">庫存查詢</button>
 <button style="background: #009688; color:white;" onclick="goToEmptyPalletQuery()" data-i18n="btn_empty_query_choice">空棧板查詢</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
-<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
 </div>
 
 <!-- 10.4 空棧板查詢頁 -->
@@ -825,7 +1063,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
   <label><span data-i18n="label_region">區域：</span>
     <select id="empty-query-region" class="form-control" style="width:140px;"></select>
   </label>
-  <button style="background:#009688; color:white;" onclick="runEmptyPalletQuery()" data-i18n="btn_empty_query">查詢空棧板</button>
+  <button class="btn-std" style="background:#009688; color:white;" onclick="runEmptyPalletQuery()" data-i18n="btn_empty_query">查詢空棧板</button>
 </div>
 <p id="empty-query-summary" style="font-weight:bold; color:#00796B;"></p>
 <div id="empty-query-result" class="empty-pallet-grid"></div>
@@ -840,8 +1078,8 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <label style="margin: 0; min-width: 110px;" data-i18n="label_scan_input">刷入/輸入序號：</label>
       <input type="text" id="query-sn-input" class="form-control" placeholder="請刷入或輸入 SN 序號" data-i18n-ph="ph_sn_query" style="flex: 1;" onkeydown="if(event.key==='Enter') querySNData();">
-      <button onclick="querySNData()" style="background:#4CAF50; color:white;" data-i18n="btn_sn_query_action">序號查詢</button>
-      <button onclick="openCameraModal('query-sn-input')" style="background:#00bcd4; color:white;" data-i18n="btn_camera">📷 相機</button>
+      <button class="btn-std" onclick="querySNData()" style="background:#4CAF50; color:white;" data-i18n="btn_sn_query_action">序號查詢</button>
+      <button class="btn-std" onclick="openCameraModal('query-sn-input')" style="background:#00bcd4; color:white;" data-i18n="btn_camera">📷 相機</button>
     </div>
     <div id="sn-result-info" style="margin-top: 10px; font-weight: bold;"></div>
   </div>
@@ -877,7 +1115,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
     <label><span data-i18n="label_warehouse">庫別：</span><input type="text" id="query-warehouse" placeholder="例如: WM15" data-i18n-ph="ph_wh_example" style="width: 110px;" onkeydown="if(event.key==='Enter') queryInventoryData();"></label>
     <label><span data-i18n="label_pallet">棧板號：</span><input type="text" id="query-pallet" placeholder="例如: M16" data-i18n-ph="ph_pallet_example" style="width: 110px;" onkeydown="if(event.key==='Enter') queryInventoryData();"></label>
     <label><span data-i18n="label_partno">料號：</span><input type="text" id="query-partno" placeholder="例如: 555.098..." data-i18n-ph="ph_part_example" style="width: 160px;" onkeydown="if(event.key==='Enter') queryInventoryData();"></label>
-    <button onclick="queryInventoryData()" style="background:#FF5722; color:white;" data-i18n="btn_query_inv">查詢庫存</button>
+    <button class="btn-std" onclick="queryInventoryData()" style="background:#FF5722; color:white;" data-i18n="btn_query_inv">查詢庫存</button>
   </div>
 
   <div id="inv-query-result-area" style="display:none;">
@@ -911,7 +1149,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: center;">
   <label><span data-i18n="label_pallet">棧板號：</span><input type="text" id="pick-pallet" style="width: 130px;"></label>
   <label><span data-i18n="label_partno">料號：</span><input type="text" id="pick-partno" style="width: 160px;"></label>
-  <button onclick="searchPickGroups()" style="background:#3F51B5; color:white;" data-i18n="btn_search">查詢</button>
+  <button class="btn-std" onclick="searchPickGroups()" style="background:#3F51B5; color:white;" data-i18n="btn_search">查詢</button>
 </div>
 
 <div id="pick-result-area" style="display:none;">
@@ -955,7 +1193,7 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: center;">
   <label><span data-i18n="label_pallet">棧板號：</span><input type="text" id="adjust-pallet" style="width: 130px;"></label>
   <label><span data-i18n="label_partno">料號：</span><input type="text" id="adjust-partno" style="width: 160px;"></label>
-  <button onclick="searchAdjustRows()" style="background:#607D8B; color:white;" data-i18n="btn_search">查詢</button>
+  <button class="btn-std" onclick="searchAdjustRows()" style="background:#607D8B; color:white;" data-i18n="btn_search">查詢</button>
 </div>
 
 <div id="adjust-result-area" style="display:none;">
@@ -1101,33 +1339,39 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 
 <!-- 12. K01特殊倉：功能選擇頁 -->
-<div id="page-special-choice" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-special-choice" class="page page-menu" data-lv="2">
+<div class="menu-box">
 <h3 data-i18n="special_choice_title">K01特殊倉</h3>
-<div class="btn-group" style="justify-content: center;">
+<div class="menu-grid">
 <button style="background: #6D4C41; color:white;" onclick="showPage('page-special-inbound-choice')" data-i18n="special_choice_inbound">特殊倉入庫</button>
 <button style="background: #8D6E63; color:white;" onclick="showPage('page-special-outbound-choice')" data-i18n="special_choice_outbound">特殊倉出庫</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
-<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
 </div>
 
 <!-- 12.1 特殊倉入庫方式選擇頁 -->
-<div id="page-special-inbound-choice" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-special-inbound-choice" class="page page-menu" data-lv="3">
+<div class="menu-box">
 <h3 data-i18n="special_inbound_choice_title">特殊倉入庫：請選擇入庫方式</h3>
-<div class="btn-group" style="justify-content: center;">
+<div class="menu-grid">
 <button style="background: #2196F3; color:white;" onclick="initSpecialSNPage('IN')" data-i18n="inbound_choice_bysn">新增(序號)入庫資料</button>
 <button style="background: #009688; color:white;" onclick="initSpecialPartPage('IN')" data-i18n="inbound_choice_bypart">以料號入庫</button>
+<button onclick="showPage('page-special-choice')" style="background:#666; color:white;" data-i18n="btn_back">返回</button>
 </div>
-<br><button onclick="showPage('page-special-choice')" style="background:#666; color:white;" data-i18n="btn_back">返回</button>
+</div>
 </div>
 
 <!-- 12.2 特殊倉出庫方式選擇頁 -->
-<div id="page-special-outbound-choice" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-special-outbound-choice" class="page page-menu" data-lv="3">
+<div class="menu-box">
 <h3 data-i18n="special_outbound_choice_title">特殊倉出庫：請選擇出庫方式</h3>
-<div class="btn-group" style="justify-content: center;">
+<div class="menu-grid">
 <button style="background: #9C27B0; color:white;" onclick="initSpecialSNPage('OUT')" data-i18n="special_outbound_choice_bysn">依序號出庫</button>
 <button style="background: #3F51B5; color:white;" onclick="initSpecialPartPage('OUT')" data-i18n="special_outbound_choice_bypart">以料號出庫</button>
+<button onclick="showPage('page-special-choice')" style="background:#666; color:white;" data-i18n="btn_back">返回</button>
 </div>
-<br><button onclick="showPage('page-special-choice')" style="background:#666; color:white;" data-i18n="btn_back">返回</button>
+</div>
 </div>
 
 <!-- 12.3 特殊倉：序號入/出庫輸入頁（共用，依 currentSpecialDirection 切換標題） -->
@@ -1213,12 +1457,14 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 
 <!-- 13. K01異常帳務區：功能選擇頁 -->
-<div id="page-issue-menu" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-issue-menu" class="page page-menu" data-lv="2">
+<div class="menu-box">
 <h3 data-i18n="issue_menu_title">K01異常帳務區</h3>
-<div class="btn-group" style="justify-content: center;">
+<div class="menu-grid">
 <button style="background: #B71C1C; color:white;" onclick="initIssueReportPage()" data-i18n="issue_menu_report">單據異常回報</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
-<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
 </div>
 
 <!-- 13.1 單據異常回報頁（含回報表單＋狀態清單） -->
@@ -1278,12 +1524,14 @@ th { background-color: #f8f9fa; position: sticky; top: 0; }
 </div>
 
 <!-- 14. 指定序號工作區：功能選擇頁 -->
-<div id="page-designated-menu" class="page" style="text-align: center; margin-top: 60px;">
+<div id="page-designated-menu" class="page page-menu" data-lv="2">
+<div class="menu-box">
 <h3 data-i18n="designated_menu_title">指定序號工作區</h3>
-<div class="btn-group" style="justify-content: center;">
+<div class="menu-grid">
 <button style="background: #4527A0; color:white;" onclick="initDesignatedUploadPage()" data-i18n="designated_menu_single">單一指定序作業</button>
+<button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
 </div>
-<br><button onclick="goHome()" style="background:#666; color:white;" data-i18n="back_home">回首頁</button>
+</div>
 </div>
 
 <!-- 14.1 單一指定序作業：上傳指定序號清單頁 -->
@@ -1688,7 +1936,7 @@ const I18N = {
     batch_confirm_summary_out_html: '<p><strong>操作類型：</strong>{mode}</p><p><strong>檔案內共讀取到序號：</strong><span style="color:blue; font-size:20px;">{count}</span> 筆</p><p style="color:#d32f2f;">系統將依序號比對庫存總表並直接移除，不限棧板／庫別／料號；請確認以上總數無誤，確認送出後才會實際移除庫存資料。</p>',
     batch_out_hint: "出庫(發料)模式僅需比對序號，不需填寫棧板號／庫別／料號，系統會自動找出符合的序號並移除。",
     btn_page_back: "⬅ 上一頁",
-    choice_rename_pallet: "新增更換整個棧板編號",
+    choice_rename_pallet: "更換整個棧板號",
     rename_title: "整棧板編號變更",
     rename_hint: "請先輸入原棧板號查詢，確認棧板上的物料內容後，再輸入要更換成的新棧板號，並選擇原棧板物料的處理方式。",
     label_old_pallet: "原棧板號：",
@@ -2156,6 +2404,7 @@ function applyLanguage(lang) {
   if (camStatus && document.getElementById('camera-modal').style.display !== 'block') {
     camStatus.innerText = tr('cam_status_default');
   }
+  if (typeof fitButtonLabels_ === 'function') fitButtonLabels_();
 }
 
 function setLanguage(lang) {
@@ -2603,6 +2852,83 @@ function closeCameraModal() {
 let navHistory = [];
 let currentPageId = 'page-welcome';
 
+/* ============================================================
+ * 背景圖：依頁面「層級」切換（首頁＝第1層，點進去一層加一層），
+ * 頁面內有表格／查詢結果就把背景調淡。新增頁面時，只要在
+ * PAGE_LEVEL 補上該頁的層級即可（沒補的頁面會沿用目前背景）。
+ * ============================================================ */
+const PAGE_LEVEL = {
+  'page-welcome': 1,
+  // 第 2 層：首頁點一下進入的頁面
+  'page-choice': 2, 'page-special-choice': 2, 'page-issue-menu': 2,
+  'page-designated-menu': 2, 'page-executor-login': 2,
+  // 第 3 層
+  'page-inbound-choice': 3, 'page-outbound-choice': 3, 'page-batch-upload': 3,
+  'page-query-choice': 3, 'page-adjust-search': 3, 'page-rename-search': 3,
+  'page-special-inbound-choice': 3, 'page-special-outbound-choice': 3,
+  'page-issue-report': 3, 'page-designated-upload': 3, 'page-executor-menu': 3,
+  // 第 4 層
+  'page-inbound-input': 4, 'page-inbound-part': 4, 'page-out-pallet': 4, 'page-out-sn': 4,
+  'page-out-pick': 4, 'page-batch-confirm': 4, 'page-query-empty-pallet': 4,
+  'page-query-sn': 4, 'page-query-inventory': 4, 'page-adjust-confirm': 4,
+  'page-rename-confirm': 4, 'page-special-sn': 4, 'page-special-part': 4,
+  'page-designated-scan': 4, 'page-executor-region': 4, 'page-executor-changelog': 4,
+  // 第 5 層
+  'page-inbound-confirm': 5, 'page-out-pick-confirm': 5, 'page-out-exception': 5,
+  'page-special-reason': 5,
+  // 第 6 層：操作完成
+  'page-success': 6
+};
+
+/* ============================================================
+ * 選單按鈕：長條形、一行字。每一頁的按鈕寬度只看「該頁」最長的那個字串
+ * （不跨頁比較），同頁按鈕等寬。作業模式頁有 class="pair" 的短按鈕排成兩欄，
+ * 其他按鈕橫跨兩欄。
+ * ============================================================ */
+function fitButtonLabels_() {
+  const unit = function(ch) { return ch.charCodeAt(0) < 128 ? 0.65 : 1; };
+  const width = function(text) { return Array.from(text).reduce(function(a, c) { return a + unit(c); }, 0); };
+  const FONT = 15, PAD = 24, GAP = 5;
+
+  document.querySelectorAll('.page-menu').forEach(function(pageEl) {
+    const grid = pageEl.querySelector('.menu-grid');
+    if (!grid) return;
+    let pairU = 0, longU = 0, hasPair = false;
+    grid.querySelectorAll(':scope > button').forEach(function(btn) {
+      const text = (btn.textContent || '').replace(/\s+/g, ' ').trim();
+      if (btn.querySelector('br')) btn.textContent = text;   // 清掉舊版的換行
+      const u = width(text);
+      if (btn.classList.contains('pair')) { hasPair = true; pairU = Math.max(pairU, u); }
+      else { longU = Math.max(longU, u); }
+    });
+    let w;
+    if (hasPair) {
+      // 每欄要放得下最長的短按鈕，而且兩欄加起來要放得下最長的長按鈕
+      w = Math.max(pairU * FONT + PAD, (longU * FONT + PAD - GAP) / 2);
+      grid.style.setProperty('--cols', 2);
+    } else {
+      w = Math.max(longU, 3) * FONT + PAD;
+      grid.style.setProperty('--cols', 1);
+    }
+    grid.style.setProperty('--btn-w', Math.ceil(w) + 'px');
+  });
+}
+
+function applyBackdrop_(pageId) {
+  const stage = document.getElementById('bg-stage');
+  if (!stage) return;
+  const lv = PAGE_LEVEL[pageId];
+  if (lv) {
+    stage.querySelectorAll('.bg-layer').forEach(function(el) {
+      el.classList.toggle('on', el.getAttribute('data-level') === String(lv));
+    });
+  }
+  const pageEl = document.getElementById(pageId);
+  const soft = !!(pageEl && pageEl.querySelector('table, .scroll-result-box, .empty-pallet-grid'));
+  stage.classList.toggle('soft', soft);
+}
+
+
 function showPage(pageId, opts) {
   opts = opts || {};
   if (!opts.skipHistory && pageId !== currentPageId) {
@@ -2611,6 +2937,7 @@ function showPage(pageId, opts) {
   currentPageId = pageId;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(pageId).classList.add('active');
+  applyBackdrop_(pageId);
   window.scrollTo(0, 0);
 }
 
